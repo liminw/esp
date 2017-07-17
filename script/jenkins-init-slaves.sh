@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ done
 [[ -z "${CLUSTER}" ]] && error_exit 'CLUSTER should be set.'
 [[ -z "${ZONE}" ]] && error_exit 'ZONE should be set.'
 
+set_git
 script/linux-prep-machine || error_exit 'Could not prep machine.'
 script/linux-install-software || error_exit 'Could not update the tools.'
 retry -n 5 ${GCLOUD} config set compute/zone "${ZONE}"

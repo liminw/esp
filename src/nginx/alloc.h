@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Endpoints Server Proxy Authors
+ * Copyright (C) Extensible Service Proxy Authors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 #include <string>
 
 extern "C" {
-#include "third_party/nginx/src/core/ngx_core.h"
+#include "src/core/ngx_core.h"
 }
 
 inline void *operator new(std::size_t sz, ngx_pool_t *pool) {

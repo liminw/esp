@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
 #include "src/nginx/zero_copy_stream.h"
 
 extern "C" {
-#include "third_party/nginx/src/http/ngx_http.h"
+#include "src/http/ngx_http.h"
 }
 
 namespace google {

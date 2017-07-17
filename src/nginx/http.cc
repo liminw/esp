@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,14 +29,14 @@
 #include <core/ngx_string.h>
 #include <memory>
 
-#include "include/api_manager/http_request.h"
+#include "contrib/endpoints/include/api_manager/http_request.h"
 #include "src/nginx/alloc.h"
 #include "src/nginx/module.h"
 #include "src/nginx/util.h"
 
 extern "C" {
-#include "third_party/nginx/src/core/ngx_core.h"
-#include "third_party/nginx/src/http/ngx_http.h"
+#include "src/core/ngx_core.h"
+#include "src/http/ngx_http.h"
 }
 
 using ::google::api_manager::utils::Status;

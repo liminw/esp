@@ -1,4 +1,4 @@
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -151,6 +151,8 @@ my $expected_report_body = ServiceControl::gen_report_body({
   'response_code' => '200',
   'request_size' => 51,
   'response_size' => 208,
+  'request_bytes' => 51,
+  'response_bytes' => 208,
   });
 
 ok(ServiceControl::compare_json($report_body, $expected_report_body), 'Report body is received.');

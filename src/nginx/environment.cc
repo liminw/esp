@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -107,6 +107,8 @@ std::unique_ptr<PeriodicTimer> NgxEspEnv::StartPeriodicTimer(
 void NgxEspEnv::RunHTTPRequest(std::unique_ptr<HTTPRequest> request) {
   ngx_esp_send_http_request(std::move(request));
 }
+
+void NgxEspEnv::RunGRPCRequest(std::unique_ptr<GRPCRequest> request) {}
 
 }  // namespace nginx
 }  // namespace api_manager

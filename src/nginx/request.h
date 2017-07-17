@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Endpoints Server Proxy Authors
+ * Copyright (C) Extensible Service Proxy Authors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,10 +27,10 @@
 #define NGINX_NGX_ESP_REQUEST_H_
 
 extern "C" {
-#include "third_party/nginx/src/http/ngx_http.h"
+#include "src/http/ngx_http.h"
 }
 
-#include "include/api_manager/request.h"
+#include "contrib/endpoints/include/api_manager/request.h"
 
 namespace google {
 namespace api_manager {
@@ -43,11 +43,17 @@ class NgxEspRequest : public Request {
   ~NgxEspRequest();
 
   virtual std::string GetRequestHTTPMethod();
-  virtual std::string GetRequestPath();
   virtual std::string GetQueryParameters();
-  virtual protocol::Protocol GetRequestProtocol();
+  virtual protocol::Protocol GetFrontendProtocol();
+  virtual protocol::Protocol GetBackendProtocol();
+  virtual std::string GetRequestPath();
   virtual std::string GetUnparsedRequestPath();
   virtual std::string GetClientIP();
+
+  virtual int64_t GetGrpcRequestBytes();
+  virtual int64_t GetGrpcResponseBytes();
+  virtual int64_t GetGrpcRequestMessageCounts();
+  virtual int64_t GetGrpcResponseMessageCounts();
 
   virtual void SetAuthToken(const std::string &auth_token);
   virtual utils::Status AddHeaderToBackend(const std::string &key,

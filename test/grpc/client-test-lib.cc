@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -39,20 +39,21 @@
 #include <grpc++/alarm.h>
 #include <grpc++/grpc++.h>
 
+#include "contrib/endpoints/src/api_manager/utils/marshalling.h"
 #include "google/protobuf/util/message_differencer.h"
-#include "src/api_manager/utils/marshalling.h"
 
 using ::google::api::servicecontrol::v1::ReportRequest;
 using ::google::protobuf::util::MessageDifferencer;
 using ::grpc::Alarm;
 using ::grpc::Channel;
+using ::grpc::ChannelArguments;
 using ::grpc::ChannelCredentials;
 using ::grpc::ClientContext;
 using ::grpc::ClientAsyncReaderWriterInterface;
 using ::grpc::ClientAsyncResponseReaderInterface;
 using ::grpc::ClientReaderWriter;
 using ::grpc::CompletionQueue;
-using ::grpc::CreateChannel;
+using ::grpc::CreateCustomChannel;
 using ::grpc::InsecureChannelCredentials;
 using ::grpc::SslCredentials;
 using ::grpc::SslCredentialsOptions;
@@ -92,7 +93,11 @@ std::shared_ptr<ChannelCredentials> GetCreds(const EchoStreamTest &desc) {
 template <class T>
 static std::unique_ptr<Test::Stub> GetStub(const std::string &addr,
                                            const T &desc) {
-  std::shared_ptr<Channel> channel(CreateChannel(addr, GetCreds(desc)));
+  ChannelArguments args;
+  args.SetMaxReceiveMessageSize(INT_MAX);
+  args.SetMaxSendMessageSize(INT_MAX);
+  std::shared_ptr<Channel> channel(
+      CreateCustomChannel(addr, GetCreds(desc), args));
   return std::unique_ptr<Test::Stub>(Test::NewStub(channel));
 }
 
@@ -105,6 +110,10 @@ void SetCallConfig(const CallConfig &call_config, ClientContext *ctx) {
   }
   for (const auto &it : call_config.metadata()) {
     ctx->AddMetadata(it.first, it.second);
+  }
+  if (call_config.compression()) {
+    ctx->set_compression_algorithm(
+        static_cast<grpc_compression_algorithm>(call_config.compression()));
   }
 }
 
@@ -197,6 +206,13 @@ class Echo {
             result.mutable_echo()->set_verified_metadata(verified_metadata);
             ok &= metadata_results->size() == 0;
           }
+
+          for (auto key : echo->desc_.expected_metadata_keys()) {
+            auto it = echo->response_.received_metadata().find(key);
+            if (it != echo->response_.received_metadata().end()) {
+              (*(result.mutable_additional_metadata()))[key] = it->second;
+            }
+          }
           done(ok, result);
         }));
   }
@@ -208,6 +224,10 @@ class Echo {
     if (desc_.request().random_payload_max_size() > 0) {
       desc_.mutable_request()->set_text(
           RandomString(desc_.request().random_payload_max_size()));
+    }
+    if (desc_.request().space_payload_size() > 0) {
+      desc_.mutable_request()->set_text(
+          std::string(desc_.request().space_payload_size(), ' '));
     }
   }
 
@@ -287,7 +307,8 @@ class EchoStream {
         server_stub_(server_stub),
         cq_(cq),
         done_(done),
-        read_count_expected_(desc.count()) {
+        read_count_expected_(desc.count()),
+        start_time_(time(NULL)) {
     SetCallConfig(desc_.call_config(), &ctx_);
     for (auto request : *desc_.mutable_request()) {
       if (request.random_payload_max_size() > 0) {
@@ -333,7 +354,13 @@ class EchoStream {
                        StartRead(es);
                        es->read_count_++;
                        es->in_flight_--;
-                       if (es->write_count_ < es->desc_.count()) {
+                       int curr_time_sec = time(NULL);
+
+                       if ((es->desc_.count() > 0 &&
+                            es->write_count_ < es->desc_.count()) ||
+                           (es->desc_.duration_in_sec() > 0 &&
+                            (curr_time_sec - es->start_time_) <
+                                es->desc_.duration_in_sec())) {
                          StartWrite(es);
                        } else {
                          StartDone(es);
@@ -399,6 +426,7 @@ class EchoStream {
   Status status_expected_;
   std::unique_ptr<ClientAsyncReaderWriterInterface<EchoRequest, EchoResponse>>
       rpc_;
+  int start_time_;  // stream start time
 };
 
 class Parallel {
@@ -825,8 +853,12 @@ class ProbeDownstreamMessageLimit {
 
     // Next, send a message.
     std::shared_ptr<Alarm> alarm = *alarmp;
+    pc->writing_ = true;
     pc->stream_rpc_->Write(pc->desc_.request(), new Tag([pc, alarm](bool ok) {
-                             if (!pc->saw_timeout_) {
+                             pc->writing_ = false;
+                             if (pc->saw_timeout_) {
+                               StartWritesDone(pc);
+                             } else {
                                pc->downstream_message_limit_++;
                              }
                              // The write succeeded; cancel the alarm.  This
@@ -851,6 +883,12 @@ class ProbeDownstreamMessageLimit {
                             }));
     }));
 
+    if (!pc->writing_) {
+      StartWritesDone(pc);
+    }
+  }
+
+  static void StartWritesDone(std::shared_ptr<ProbeDownstreamMessageLimit> pc) {
     pc->stream_rpc_->WritesDone(new Tag([pc](bool ok) {
       Status *status = new Status();
       pc->stream_rpc_->Finish(status, new Tag([pc, status](bool ok) {
@@ -888,6 +926,7 @@ class ProbeDownstreamMessageLimit {
   bool saw_timeout_ = false;
   bool cork_finished_ = false;
   bool stream_finished_ = false;
+  bool writing_ = false;
 };
 
 // Probes for the presence of flow control from the server to the
@@ -967,15 +1006,17 @@ class ProbeUpstreamMessageLimit {
 
     // Next, send a message.
     std::shared_ptr<Alarm> alarm = *alarmp;
+    pc->writing_ = true;
     pc->stream_rpc_->Write(pc->desc_.request(), new Tag([pc, alarm](bool ok) {
-                             if (!pc->saw_timeout_) {
+                             pc->writing_ = false;
+                             if (pc->saw_timeout_) {
+                               StartWritesDone(pc);
+                             } else {
                                pc->upstream_message_limit_++;
                              }
                              // The write succeeded; cancel the alarm.  This
-                             // will cause
-                             // the alarm's callback to fire with ok==false, if
-                             // it hasn't
-                             // already fired.
+                             // will cause the alarm's callback to fire with
+                             // ok==false, if it hasn't already fired.
                              alarm->Cancel();
                            }));
   }
@@ -987,6 +1028,12 @@ class ProbeUpstreamMessageLimit {
     // queued-up messages, so that the RPC can actually finish.
     StartReadStreamMessages(pc);
 
+    if (!pc->writing_) {
+      StartWritesDone(pc);
+    }
+  }
+
+  static void StartWritesDone(std::shared_ptr<ProbeUpstreamMessageLimit> pc) {
     pc->stream_rpc_->WritesDone(new Tag([pc](bool ok) {
       Status *status = new Status();
       pc->stream_rpc_->Finish(
@@ -1010,6 +1057,7 @@ class ProbeUpstreamMessageLimit {
       stream_rpc_;
   int upstream_message_limit_ = 0;
   bool saw_timeout_ = false;
+  bool writing_ = false;
 };
 
 template <class T>

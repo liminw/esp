@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -258,6 +258,8 @@ func TestServiceControlRequests(t *testing.T) {
 		LogMessage:        "Method: ListShelves",
 		RequestSize:       894,
 		ResponseSize:      270,
+		RequestBytes:      894,
+		ResponseBytes:     270,
 		ResponseCode:      200,
 	}) {
 		t.Errorf("Report request data doesn't match.")

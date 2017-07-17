@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Endpoints Server Proxy Authors
+ * Copyright (C) Extensible Service Proxy Authors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,10 +27,10 @@
 #define NGINX_NGX_ESP_ERROR_H_
 
 extern "C" {
-#include "third_party/nginx/src/http/ngx_http.h"
+#include "src/http/ngx_http.h"
 }
 
-#include "include/api_manager/utils/status.h"
+#include "contrib/endpoints/include/api_manager/utils/status.h"
 
 namespace google {
 namespace api_manager {

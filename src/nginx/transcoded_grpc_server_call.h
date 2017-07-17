@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Endpoints Server Proxy Authors
+ * Copyright (C) Extensible Service Proxy Authors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,15 @@
 #include <vector>
 
 extern "C" {
-#include "third_party/nginx/src/http/ngx_http.h"
+#include "src/http/ngx_http.h"
 }
 
+#include "contrib/endpoints/include/api_manager/utils/status.h"
 #include "grpc++/support/byte_buffer.h"
-#include "include/api_manager/transcoder.h"
-#include "include/api_manager/utils/status.h"
-#include "src/api_manager/grpc/zero_copy_stream.h"
+#include "src/grpc/zero_copy_stream.h"
 #include "src/nginx/grpc_server_call.h"
 #include "src/nginx/zero_copy_stream.h"
+#include "src/transcoder.h"
 
 namespace google {
 namespace api_manager {
@@ -78,7 +78,7 @@ class NgxEspTranscodedGrpcServerCall : public NgxEspGrpcServerCall {
       ngx_http_request_t* r,
       std::unique_ptr<NgxRequestZeroCopyInputStream> nginx_request_stream,
       std::unique_ptr<grpc::GrpcZeroCopyInputStream> grpc_response_stream,
-      std::unique_ptr<transcoding::Transcoder> transcoder);
+      std::unique_ptr<::google::grpc::transcoding::Transcoder> transcoder);
 
   // Read the translated response message from the transcoder into an
   // ngx_chain_t.
@@ -96,7 +96,7 @@ class NgxEspTranscodedGrpcServerCall : public NgxEspGrpcServerCall {
   std::unique_ptr<grpc::GrpcZeroCopyInputStream> grpc_response_stream_;
 
   // The transcoder that does the actual translation
-  std::unique_ptr<transcoding::Transcoder> transcoder_;
+  std::unique_ptr<::google::grpc::transcoding::Transcoder> transcoder_;
 };
 
 }  // namespace nginx

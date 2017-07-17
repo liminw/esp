@@ -1,4 +1,4 @@
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,12 +45,21 @@ my @http1_random_metrics = (
     'serviceruntime.googleapis.com/api/producer/backend_latencies',
     'serviceruntime.googleapis.com/api/consumer/request_overhead_latencies',
     'serviceruntime.googleapis.com/api/producer/request_overhead_latencies',
+    'serviceruntime.googleapis.com/api/consumer/streaming_durations',
+    'serviceruntime.googleapis.com/api/producer/streaming_durations',
+    'serviceruntime.googleapis.com/api/producer/by_consumer/total_latencies',
+    'serviceruntime.googleapis.com/api/producer/by_consumer/request_overhead_latencies',
+    'serviceruntime.googleapis.com/api/producer/by_consumer/backend_latencies',
 );
 
 my @http2_random_metrics = (
     @http1_random_metrics,
     'serviceruntime.googleapis.com/api/consumer/response_sizes',
     'serviceruntime.googleapis.com/api/producer/response_sizes',
+    'serviceruntime.googleapis.com/api/consumer/response_bytes',
+    'serviceruntime.googleapis.com/api/producer/response_bytes',
+    'serviceruntime.googleapis.com/api/producer/by_consumer/request_sizes',
+    'serviceruntime.googleapis.com/api/producer/by_consumer/response_sizes',
 );
 
 sub gen_metric_int64 {
@@ -62,8 +71,8 @@ sub gen_metric_int64 {
 }
 
 my %time_distribution = (
-  buckets => 8,
-  growth => 10.0,
+  buckets => 29,
+  growth => 2.0,
   scale => 1e-6
 );
 
@@ -124,10 +133,11 @@ sub gen_report_labels {
     '/protocol' => 'http'
   };
 
-  $labels->{'serviceruntime.googleapis.com/api_method'} = $in->{api_method};
+  $labels->{'serviceruntime.googleapis.com/api_method'} = $in->{api_method} if exists $in->{api_method};
   $labels->{'/status_code'} = $in->{status_code} if exists $in->{status_code};
   $labels->{'/error_type'} = $in->{error_type} if exists $in->{error_type};
   $labels->{'/protocol'} = $in->{protocol} if exists $in->{protocol};
+  $labels->{'servicecontrol.googleapis.com/backend_protocol'} = $in->{backend_protocol} if exists $in->{backend_protocol};
   $labels->{'serviceruntime.googleapis.com/api_version'} = $in->{api_version} if exists $in->{api_version};
 
   if (exists $in->{platform}) {
@@ -148,10 +158,10 @@ sub gen_log_entry {
   my $in = shift;
 
   my $payload = {
-    'api_method' => $in->{api_method},
     'http_response_code' => $in->{response_code},
   };
 
+  $payload->{api_method} = $in->{api_method} if exists $in->{api_method};
   $payload->{api_name} = $in->{api_name} if exists $in->{api_name};
   $payload->{api_version} = $in->{api_version} if exists $in->{api_version};
   $payload->{producer_project_id} = $in->{producer_project_id} if
@@ -159,8 +169,8 @@ sub gen_log_entry {
   $payload->{api_key} = $in->{api_key} if exists $in->{api_key};
   $payload->{referer} = $in->{referer} if exists $in->{referer};
   $payload->{location} = $in->{location} if exists $in->{location};
-  $payload->{request_size} = $in->{request_size} if exists $in->{request_size};
-  $payload->{response_size} = $in->{response_size} if exists $in->{response_size};
+  $payload->{request_size_in_bytes} = $in->{request_size} if exists $in->{request_size};
+  $payload->{response_size_in_bytes} = $in->{response_size} if exists $in->{response_size};
   $payload->{log_message} = $in->{log_message} if exists $in->{log_message};
   $payload->{url} = $in->{url} if exists $in->{url};
   $payload->{http_method} = $in->{http_method} if exists $in->{http_method};
@@ -182,7 +192,11 @@ sub gen_report_body {
   my $in = shift;
 
   my $operation = {};
-  $operation->{operationName} = $in->{api_method};
+  if (exists $in->{api_method}) {
+    $operation->{operationName} = $in->{api_method};
+  } else {
+    $operation->{operationName} = '<Unknown Operation Name>';
+  }
   if (exists $in->{api_key}) {
     $operation->{consumerId} = 'api_key:' . $in->{api_key};
   }
@@ -197,9 +211,13 @@ sub gen_report_body {
   my @metrics = (
     gen_metric_int64(
       'serviceruntime.googleapis.com/api/producer/request_count', 1),
+    gen_metric_int64(
+      'serviceruntime.googleapis.com/api/producer/by_consumer/request_count', 1),
 
     gen_metric_dist(\%size_distribution,
       'serviceruntime.googleapis.com/api/producer/request_sizes', $in->{request_size}),
+    gen_metric_dist(\%size_distribution,
+      'serviceruntime.googleapis.com/api/producer/by_consumer/request_sizes', $in->{request_size}),
     );
 
   my $send_consumer_metric = (!exists $in->{no_consumer_data}) || (!$in->{no_consumer_data});
@@ -214,15 +232,56 @@ sub gen_report_body {
   if (exists $in->{response_size}) {
     push @metrics, gen_metric_dist(\%size_distribution,
       'serviceruntime.googleapis.com/api/producer/response_sizes', $in->{response_size});
+    push @metrics, gen_metric_dist(\%size_distribution,
+      'serviceruntime.googleapis.com/api/producer/by_consumer/response_sizes', $in->{response_size});
     if ($send_consumer_metric)  {
       push @metrics, gen_metric_dist(\%size_distribution,
               'serviceruntime.googleapis.com/api/consumer/response_sizes', $in->{response_size});
     }
   }
 
+  if (exists $in->{streaming_request_message_counts}) {
+    push @metrics, gen_metric_dist(\%size_distribution,
+            'serviceruntime.googleapis.com/api/producer/streaming_request_message_counts', $in->{streaming_request_message_counts});
+    if ($send_consumer_metric)  {
+      push @metrics, gen_metric_dist(\%size_distribution,
+              'serviceruntime.googleapis.com/api/consumer/streaming_request_message_counts', $in->{streaming_request_message_counts});
+    }
+  }
+
+  if (exists $in->{streaming_response_message_counts}) {
+    push @metrics, gen_metric_dist(\%size_distribution,
+            'serviceruntime.googleapis.com/api/producer/streaming_response_message_counts', $in->{streaming_response_message_counts});
+    if ($send_consumer_metric)  {
+      push @metrics, gen_metric_dist(\%size_distribution,
+              'serviceruntime.googleapis.com/api/consumer/streaming_response_message_counts', $in->{streaming_response_message_counts});
+    }
+  }
+
+
+  if (exists $in->{request_bytes}) {
+    push @metrics, gen_metric_int64(
+            'serviceruntime.googleapis.com/api/producer/request_bytes', $in->{request_bytes});
+    if ($send_consumer_metric)  {
+      push @metrics, gen_metric_int64(
+              'serviceruntime.googleapis.com/api/consumer/request_bytes', $in->{request_bytes});
+    }
+  }
+
+  if (exists $in->{response_bytes}) {
+    push @metrics, gen_metric_int64(
+            'serviceruntime.googleapis.com/api/producer/response_bytes', $in->{response_bytes});
+    if ($send_consumer_metric)  {
+      push @metrics, gen_metric_int64(
+              'serviceruntime.googleapis.com/api/consumer/response_bytes', $in->{response_bytes});
+    }
+  }
+
   if (exists $in->{error_type}) {
     push @metrics, gen_metric_int64(
       'serviceruntime.googleapis.com/api/producer/error_count', 1);
+    push @metrics, gen_metric_int64(
+      'serviceruntime.googleapis.com/api/producer/by_consumer/error_count', 1);
     if ($send_consumer_metric) {
       push @metrics, gen_metric_int64(
               'serviceruntime.googleapis.com/api/consumer/error_count', 1);
@@ -325,12 +384,14 @@ sub compare_http2_report_json {
   my $json_obj = ApiManager::decode_json($json);
 
   strip_random_metrics($json_obj, @http2_random_metrics);
+  strip_random_metrics($expected, @http2_random_metrics);
+
   sort_metrics_by_name($json_obj);
   sort_metrics_by_name($expected);
 
   print Dumper $json_obj if $ENV{TEST_NGINX_VERBOSE};
   my %ignore_keys = map { $_ => "1" } qw(
-    startTime endTime timestamp operationId request_latency_in_ms response_size);
+    startTime endTime timestamp operationId request_latency_in_ms response_size_in_bytes);
   return ApiManager::compare($json_obj, $expected, "", \%ignore_keys);
 }
 
@@ -339,7 +400,7 @@ sub service_agent {
 }
 
 sub get_version {
-  my $version_file = "./include/version";
+  my $version_file = "./src/nginx/version";
   open F, '<', $version_file or die "Can't open ${version_file}: $!";
   my $content = <F>;
   close F;

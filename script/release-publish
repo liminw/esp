@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -77,10 +77,10 @@ which rapture > /dev/null 2>&1 \
 
 set -x
 
-VERSION="$(command cat ${ROOT}/include/version)" \
-  || error_exit "Cannot find release version (${ROOT}/include/version)"
-
-if RELEASE_BRANCH_SHA="$(git rev-parse origin/release/${VERSION})"; then
+VERSION="$(command cat ${ROOT}/src/nginx/version)" \
+  || error_exit "Cannot find release version (${ROOT}/src/nginx/version)"
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+if RELEASE_BRANCH_SHA="$(git rev-parse upstream/${CURRENT_BRANCH})"; then
   if [[ "${SHA}" != "${RELEASE_BRANCH_SHA}" ]]; then
     printf "\e[31m
 WARNING: Release branch commit (${RELEASE_BRANCH_SHA}) doesn't match ${SHA}.
@@ -100,7 +100,7 @@ function push_docker_image() {
     || { echo "Could not tag ${source_image} to ${target_image}."; return 1; }
 
   echo "Pushing ${target_image} to Cloud Container Registry."
-  "${GCLOUD}" docker push "${target_image}" \
+  "${GCLOUD}" docker -- push "${target_image}" \
     || { echo "Cloud Container Registry push of ${target_image} failed."; return 1; }
 
   return 0;
@@ -108,7 +108,7 @@ function push_docker_image() {
 
 push_docker_image \
   "gcr.io/endpoints-jenkins/endpoints-runtime:debian-git-${SHA}" \
-  "b.gcr.io/endpoints/endpoints-runtime:${VERSION}" \
+  "gcr.io/endpoints-release/endpoints-runtime:${VERSION}" \
   || error_exit "Docker image push failed."
 
 SOURCE_PKG="gs://endpoints-jenkins.appspot.com/${SHA}/artifacts/endpoints-runtime-amd64.deb"

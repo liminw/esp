@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Endpoints Server Proxy Authors
+ * Copyright (C) Extensible Service Proxy Authors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,10 +28,10 @@
 
 #include <chrono>
 
-#include "include/api_manager/api_manager.h"
+#include "contrib/endpoints/include/api_manager/api_manager.h"
 
 extern "C" {
-#include "third_party/nginx/src/http/ngx_http.h"
+#include "src/http/ngx_http.h"
 }
 
 namespace google {

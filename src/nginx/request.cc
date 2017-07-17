@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -43,17 +43,20 @@ std::string NgxEspRequest::GetRequestHTTPMethod() {
   return ngx_str_to_std(r_->method_name);
 }
 
-std::string NgxEspRequest::GetRequestPath() { return ngx_str_to_std(r_->uri); }
-
 std::string NgxEspRequest::GetQueryParameters() {
   return ngx_str_to_std(r_->args);
+}
+
+std::string NgxEspRequest::GetRequestPath() {
+  std::string unparsed_str = ngx_str_to_std(r_->unparsed_uri);
+  return unparsed_str.substr(0, unparsed_str.find_first_of('?'));
 }
 
 std::string NgxEspRequest::GetUnparsedRequestPath() {
   return ngx_str_to_std(r_->unparsed_uri);
 }
 
-::google::api_manager::protocol::Protocol NgxEspRequest::GetRequestProtocol() {
+::google::api_manager::protocol::Protocol NgxEspRequest::GetFrontendProtocol() {
   ngx_esp_request_ctx_t *ctx = ngx_http_esp_ensure_module_ctx(r_);
   if (ctx->grpc_pass_through) {
     return ::google::api_manager::protocol::GRPC;
@@ -70,6 +73,16 @@ std::string NgxEspRequest::GetUnparsedRequestPath() {
   }
 }
 
+::google::api_manager::protocol::Protocol NgxEspRequest::GetBackendProtocol() {
+  ngx_esp_request_ctx_t *ctx = ngx_http_esp_ensure_module_ctx(r_);
+  if (ctx->grpc_backend) {
+    return ::google::api_manager::protocol::GRPC;
+  } else {
+    // TODO: determine HTTP or HTTPS for backend.
+    return ::google::api_manager::protocol::UNKNOWN;
+  }
+}
+
 std::string NgxEspRequest::GetClientIP() {
   // use remote_addr varaible to get client_ip.
   ngx_esp_main_conf_t *mc = reinterpret_cast<ngx_esp_main_conf_t *>(
@@ -82,6 +95,26 @@ std::string NgxEspRequest::GetClientIP() {
     }
   }
   return "";
+}
+
+int64_t NgxEspRequest::GetGrpcRequestMessageCounts() {
+  ngx_esp_request_ctx_t *ctx = ngx_http_esp_ensure_module_ctx(r_);
+  return ctx->grpc_request_message_counts;
+}
+
+int64_t NgxEspRequest::GetGrpcResponseMessageCounts() {
+  ngx_esp_request_ctx_t *ctx = ngx_http_esp_ensure_module_ctx(r_);
+  return ctx->grpc_response_message_counts;
+}
+
+int64_t NgxEspRequest::GetGrpcRequestBytes() {
+  ngx_esp_request_ctx_t *ctx = ngx_http_esp_ensure_module_ctx(r_);
+  return ctx->grpc_request_bytes;
+}
+
+int64_t NgxEspRequest::GetGrpcResponseBytes() {
+  ngx_esp_request_ctx_t *ctx = ngx_http_esp_ensure_module_ctx(r_);
+  return ctx->grpc_response_bytes;
 }
 
 bool NgxEspRequest::FindQuery(const std::string &name, std::string *query) {

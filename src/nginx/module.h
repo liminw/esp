@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Endpoints Server Proxy Authors
+ * Copyright (C) Extensible Service Proxy Authors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,19 +26,21 @@
 #ifndef NGINX_NGX_ESP_MODULE_H_
 #define NGINX_NGX_ESP_MODULE_H_
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <string>
 
 extern "C" {
-#include "third_party/nginx/src/http/ngx_http.h"
+#include "src/http/ngx_http.h"
 }
 
 #include <grpc++/generic/generic_stub.h>
 #include <grpc++/grpc++.h>
 
-#include "include/api_manager/api_manager.h"
-#include "include/api_manager/utils/status.h"
+#include "contrib/endpoints/include/api_manager/api_manager.h"
+#include "contrib/endpoints/include/api_manager/utils/status.h"
+#include "contrib/endpoints/src/grpc/transcoding/transcoder_factory.h"
 #include "src/nginx/alloc.h"
 #include "src/nginx/grpc.h"
 #include "src/nginx/grpc_queue.h"
@@ -51,7 +53,7 @@ namespace api_manager {
 namespace nginx {
 
 // ********************************************************
-// * Endpoints Server Proxy - Configuration declarations. *
+// * Extensible Service Proxy - Configuration declarations. *
 // ********************************************************
 
 //
@@ -119,8 +121,12 @@ typedef struct {
   ngx_str_t endpoints_config;  // API Configuration file name.
   ngx_flag_t endpoints_api;    // Does this location host an Endpoints API?
 
-  // Endpoints Server Proxy library interface.
+  // Extensible Service Proxy library interface.
   std::shared_ptr<ApiManager> esp;
+
+  // Transcoder factory map.
+  std::map<std::string, std::shared_ptr<transcoding::TranscoderFactory>>
+      transcoder_factory_map;
 
   unsigned endpoints_block : 1;  // location has `endpoints` block
   unsigned grpc_pass : 1;        // location has `grpc_pass` directive
@@ -169,7 +175,7 @@ typedef struct {
 } ngx_esp_loc_conf_t;
 
 // **************************************************
-// * Endpoints Server Proxy - Runtime declarations. *
+// * Extensible Service Proxy - Runtime declarations. *
 // **************************************************
 
 typedef struct ngx_esp_request_ctx_s ngx_esp_request_ctx_t;
@@ -219,12 +225,23 @@ struct ngx_esp_request_ctx_s {
   NgxEspGrpcServerCall *grpc_server_call;
   // Mark if this request is grpc pass through.
   bool grpc_pass_through;
+  // Mark the backend is grpc.
+  bool grpc_backend;
 
   // RequestHandlerInterface object
   std::unique_ptr<RequestHandlerInterface> request_handler;
 
+  // Transcoder factory
+  std::shared_ptr<transcoding::TranscoderFactory> transcoder_factory;
+
   // The backend request time in milliseconds. -1 if not available.
   int64_t backend_time;
+
+  // Streaming metrics from grpc calls.
+  std::atomic_int_fast64_t grpc_request_bytes;
+  std::atomic_int_fast64_t grpc_response_bytes;
+  std::atomic_int_fast64_t grpc_request_message_counts;
+  std::atomic_int_fast64_t grpc_response_message_counts;
 
   // HTTP upstream subrequest connection
   ngx_esp_http_connection *http_subrequest;

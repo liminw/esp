@@ -1,4 +1,4 @@
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -22,8 +22,11 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-################################################################################
+###############################################################################
 #
+
+load("@io_bazel_rules_pex//pex:pex_rules.bzl", "pex_binary")
+
 cc_binary(
     name = "nginx-google",
     srcs = [
@@ -32,57 +35,57 @@ cc_binary(
     linkstatic = 1,
     deps = [
         "//src/nginx:ngx_esp",
-        "//third_party/nginx:http",
-        "//third_party/nginx:http_access",
-        "//third_party/nginx:http_addition",
-        "//third_party/nginx:http_auth_basic",
-        "//third_party/nginx:http_auth_request",
-        "//third_party/nginx:http_autoindex",
-        "//third_party/nginx:http_browser",
-        "//third_party/nginx:http_charset",
-        "//third_party/nginx:http_dav",
-        "//third_party/nginx:http_empty_gif",
-        "//third_party/nginx:http_fastcgi",
-        "//third_party/nginx:http_flv",
-        "//third_party/nginx:http_geo",
-        "//third_party/nginx:http_gunzip",
-        "//third_party/nginx:http_gzip_filter",
-        "//third_party/nginx:http_gzip_static",
-        "//third_party/nginx:http_limit_conn",
-        "//third_party/nginx:http_limit_req",
-        "//third_party/nginx:http_map",
-        "//third_party/nginx:http_memcached",
-        "//third_party/nginx:http_mp4",
-        "//third_party/nginx:http_proxy",
-        "//third_party/nginx:http_random_index",
-        "//third_party/nginx:http_realip",
-        "//third_party/nginx:http_referer",
-        "//third_party/nginx:http_rewrite",
-        "//third_party/nginx:http_scgi",
-        "//third_party/nginx:http_secure_link",
-        "//third_party/nginx:http_split_clients",
-        "//third_party/nginx:http_ssi",
-        "//third_party/nginx:http_stub_status",
-        "//third_party/nginx:http_sub",
-        "//third_party/nginx:http_upstream_hash",
-        "//third_party/nginx:http_upstream_ip_hash",
-        "//third_party/nginx:http_upstream_keepalive",
-        "//third_party/nginx:http_upstream_least_conn",
-        "//third_party/nginx:http_userid",
-        "//third_party/nginx:http_uwsgi",
-        "//third_party/nginx:mail",
-        "//third_party/nginx:mail_imap",
-        "//third_party/nginx:mail_pop3",
-        "//third_party/nginx:mail_smtp",
-        "//third_party/nginx:stream",
-        "//third_party/nginx:stream_access",
-        "//third_party/nginx:stream_geo",
-        "//third_party/nginx:stream_limit_conn",
-        "//third_party/nginx:stream_map",
-        "//third_party/nginx:stream_return",
-        "//third_party/nginx:stream_split_clients",
-        "//third_party/nginx:stream_upstream_hash",
-        "//third_party/nginx:stream_upstream_least_conn",
+        "@nginx//:http",
+        "@nginx//:http_access",
+        "@nginx//:http_addition",
+        "@nginx//:http_auth_basic",
+        "@nginx//:http_auth_request",
+        "@nginx//:http_autoindex",
+        "@nginx//:http_browser",
+        "@nginx//:http_charset",
+        "@nginx//:http_dav",
+        "@nginx//:http_empty_gif",
+        "@nginx//:http_fastcgi",
+        "@nginx//:http_flv",
+        "@nginx//:http_geo",
+        "@nginx//:http_gunzip",
+        "@nginx//:http_gzip_filter",
+        "@nginx//:http_gzip_static",
+        "@nginx//:http_limit_conn",
+        "@nginx//:http_limit_req",
+        "@nginx//:http_map",
+        "@nginx//:http_memcached",
+        "@nginx//:http_mp4",
+        "@nginx//:http_proxy",
+        "@nginx//:http_random_index",
+        "@nginx//:http_realip",
+        "@nginx//:http_referer",
+        "@nginx//:http_rewrite",
+        "@nginx//:http_scgi",
+        "@nginx//:http_secure_link",
+        "@nginx//:http_split_clients",
+        "@nginx//:http_ssi",
+        "@nginx//:http_stub_status",
+        "@nginx//:http_sub",
+        "@nginx//:http_upstream_hash",
+        "@nginx//:http_upstream_ip_hash",
+        "@nginx//:http_upstream_keepalive",
+        "@nginx//:http_upstream_least_conn",
+        "@nginx//:http_userid",
+        "@nginx//:http_uwsgi",
+        "@nginx//:mail",
+        "@nginx//:mail_imap",
+        "@nginx//:mail_pop3",
+        "@nginx//:mail_smtp",
+        "@nginx//:stream",
+        "@nginx//:stream_access",
+        "@nginx//:stream_geo",
+        "@nginx//:stream_limit_conn",
+        "@nginx//:stream_map",
+        "@nginx//:stream_return",
+        "@nginx//:stream_split_clients",
+        "@nginx//:stream_upstream_hash",
+        "@nginx//:stream_upstream_least_conn",
     ],
 )
 
@@ -97,48 +100,49 @@ cc_binary(
     ],
     deps = [
         "//src/nginx:ngx_esp",
-        "//third_party/nginx:http",
-        "//third_party/nginx:http_access",
-        "//third_party/nginx:http_addition",
-        "//third_party/nginx:http_auth_request",
-        "//third_party/nginx:http_autoindex",
-        "//third_party/nginx:http_browser",
-        "//third_party/nginx:http_charset",
-        "//third_party/nginx:http_geo",
-        "//third_party/nginx:http_gunzip",
-        "//third_party/nginx:http_gzip_filter",
-        "//third_party/nginx:http_gzip_static",
-        "//third_party/nginx:http_limit_conn",
-        "//third_party/nginx:http_limit_req",
-        "//third_party/nginx:http_map",
-        "//third_party/nginx:http_proxy",
-        "//third_party/nginx:http_realip",
-        "//third_party/nginx:http_referer",
-        "//third_party/nginx:http_rewrite",
-        "//third_party/nginx:http_split_clients",
-        "//third_party/nginx:http_stub_status",
-        "//third_party/nginx:http_sub",
-        "//third_party/nginx:http_upstream_hash",
-        "//third_party/nginx:http_upstream_ip_hash",
-        "//third_party/nginx:http_upstream_keepalive",
-        "//third_party/nginx:http_upstream_least_conn",
-        "//third_party/nginx:http_userid",
-        "//third_party/nginx:stream",
-        "//third_party/nginx:stream_access",
-        "//third_party/nginx:stream_geo",
-        "//third_party/nginx:stream_limit_conn",
-        "//third_party/nginx:stream_map",
-        "//third_party/nginx:stream_return",
-        "//third_party/nginx:stream_split_clients",
-        "//third_party/nginx:stream_upstream_hash",
-        "//third_party/nginx:stream_upstream_least_conn",
+        "//src/nginx:version_header",
+        "@nginx//:http",
+        "@nginx//:http_access",
+        "@nginx//:http_addition",
+        "@nginx//:http_auth_request",
+        "@nginx//:http_autoindex",
+        "@nginx//:http_browser",
+        "@nginx//:http_charset",
+        "@nginx//:http_geo",
+        "@nginx//:http_gunzip",
+        "@nginx//:http_gzip_filter",
+        "@nginx//:http_gzip_static",
+        "@nginx//:http_limit_conn",
+        "@nginx//:http_limit_req",
+        "@nginx//:http_map",
+        "@nginx//:http_proxy",
+        "@nginx//:http_realip",
+        "@nginx//:http_referer",
+        "@nginx//:http_rewrite",
+        "@nginx//:http_split_clients",
+        "@nginx//:http_stub_status",
+        "@nginx//:http_sub",
+        "@nginx//:http_upstream_hash",
+        "@nginx//:http_upstream_ip_hash",
+        "@nginx//:http_upstream_keepalive",
+        "@nginx//:http_upstream_least_conn",
+        "@nginx//:http_userid",
+        "@nginx//:stream",
+        "@nginx//:stream_access",
+        "@nginx//:stream_geo",
+        "@nginx//:stream_limit_conn",
+        "@nginx//:stream_map",
+        "@nginx//:stream_return",
+        "@nginx//:stream_split_clients",
+        "@nginx//:stream_upstream_hash",
+        "@nginx//:stream_upstream_least_conn",
     ],
 )
 
 load("@bazel_tools//tools/build_defs/pkg:pkg.bzl", "pkg_tar", "pkg_deb")
 
 genrule(
-    name = "rename-mginx-esp",
+    name = "rename-nginx-esp",
     srcs = [":nginx-esp"],
     outs = ["nginx"],
     cmd = "cp $< $@",
@@ -148,14 +152,15 @@ genrule(
     name = "rename-copyright",
     srcs = [
         "//:LICENSE",
-        "//third_party/nginx:LICENSE",
-        "//third_party/service-control-client-cxx:LICENSE",
+        "@nginx//:LICENSE",
         "@boringssl//:LICENSE",
         "@grpc_git//:LICENSE",
         "@nanopb_git//:LICENSE.txt",
         "@nginx_pcre//:LICENCE",
         "@nginx_zlib//:README",
         "@protobuf_git//:LICENSE",
+        "@istio_proxy_git//:LICENSE",
+        "@servicecontrol_client_git//:LICENSE",
     ],
     outs = [
         "copyright",
@@ -164,7 +169,7 @@ genrule(
           "echo \"\n\" >> $(@);" +
           "echo \"This NGINX binary is statically linked against:\" >> $(@);" +
           "echo \"BoringSSL, gRPC, Nanopb, PCRE, Protocol Buffers," +
-          " Service Control Client & zlib.\" >> $(@);" +
+          " Istio Proxy, Service Control Client & zlib.\" >> $(@);" +
           "echo \"\n\nBoringSSL license:\n==================\n\" >> $(@);" +
           "cat $(location @boringssl//:LICENSE) >> $(@);" +
           "echo \"\n\ngRPC license:\n=============\n\" >> $(@);" +
@@ -172,29 +177,26 @@ genrule(
           "echo \"\n\nNanopb license:\n===============\n\" >> $(@);" +
           "cat $(location @nanopb_git//:LICENSE.txt) >> $(@);" +
           "echo \"\n\nNGINX license:\n==============\n\" >> $(@);" +
-          "cat $(location //third_party/nginx:LICENSE) >> $(@);" +
+          "cat $(location @nginx//:LICENSE) >> $(@);" +
           "echo \"\n\nPCRE license:\n=============\n\" >> $(@);" +
           "cat $(location @nginx_pcre//:LICENCE) >> $(@);" +
           "echo \"\n\nProtocol Buffers license:\" >> $(@);" +
           "echo \"=========================\n\" >> $(@);" +
           "cat $(location @protobuf_git//:LICENSE) >> $(@);" +
+          "echo \"\n\nIstio Proxy license:\" >> $(@);" +
+          "echo \"=========================\n\" >> $(@);" +
+          "cat $(location @istio_proxy_git//:LICENSE) >> $(@);" +
           "echo \"\n\nService Control Client license:\" >> $(@);" +
-          "echo \"===============================\n\" >> $(@);" +
-          "cat $(location //third_party/service-control-client-cxx:LICENSE)" +
-          " >> $(@);" +
+          "echo \"=========================\n\" >> $(@);" +
+          "cat $(location @servicecontrol_client_git//:LICENSE) >> $(@);" +
           "echo \"\n\nzlib license:\n=============\n\" >> $(@);" +
           "cat $(location @nginx_zlib//:README) | grep -A99 Copyright >> $(@)",
 )
 
 pkg_tar(
-    name = "esp-bin",
+    name = "nginx-bin",
     files = [
-        ":debug_nginx.sh",
-        ":fetch_service_config.py",
-        ":fetch_service_config.sh",
         ":nginx",
-        ":nginx-debug",
-        ":start_esp.py",
     ],
     mode = "0755",
     package_dir = "/usr/sbin",
@@ -212,36 +214,6 @@ pkg_tar(
 )
 
 pkg_tar(
-    name = "nginx-initd-override",
-    files = [
-        "nginx-init.d/nginx",
-    ],
-    mode = "0755",
-    package_dir = "/etc/init.d",
-)
-
-pkg_tar(
-    name = "nginx-conf-template",
-    files = [
-        "//src/nginx/main:nginx-auto.conf.template",
-        "//src/nginx/main:server_config.pb.txt",
-    ],
-    mode = "0644",
-    package_dir = "/etc/nginx",
-    strip_prefix = ".",
-)
-
-pkg_tar(
-    name = "trusted-ca-certificates",
-    files = [
-        "//src/nginx/main:trusted-ca-certificates.crt",
-    ],
-    mode = "0644",
-    package_dir = "/etc/nginx",
-    strip_prefix = ".",
-)
-
-pkg_tar(
     name = "esp-data",
     extension = "tar.gz",
     mode = "0644",
@@ -249,13 +221,56 @@ pkg_tar(
         # The first occurrence of the duplicate file will be picked. In other
         # words, /etc/nginx/nginx.conf from ":nginx-conf-override" will
         # override that from "@nginx_pkgoss//:debian_overlay".
-        ":nginx-conf-template",
-        ":nginx-initd-override",
+        ":start_esp_tar",
+        "@tools//start_esp:nginx-conf-template",
+        "@tools//start_esp:nginx-initd-override",
         "@nginx_pkgoss//:debian_overlay",
-        ":esp-bin",
+        "@tools//start_esp:esp-bin",
+        ":nginx-bin",
         ":esp-copyright",
-        ":trusted-ca-certificates",
+        "@tools//start_esp:trusted-ca-certificates",
     ],
+)
+
+# Due to an issue with external repository and PEX rules, we need to move these files here
+
+genrule(
+    name = "import_start_esp",
+    srcs = ["@tools//start_esp:start_esp.py"],
+    outs = ["start_esp.py"],
+    cmd = "cat $(location @tools//start_esp:start_esp.py) > $@",
+)
+
+genrule(
+    name = "import_fetch_service_config",
+    srcs = ["@tools//start_esp:fetch_service_config.py"],
+    outs = ["fetch_service_config.py"],
+    cmd = "cat $(location @tools//start_esp:fetch_service_config.py) > $@",
+)
+
+pex_binary(
+    name = "start_esp",
+    srcs = [
+        ":fetch_service_config.py",
+        ":start_esp.py",
+    ],
+    main = ":start_esp.py",
+    reqs = [
+        "certifi",
+        "mako>=1.0.4",
+        "oauth2client>=3.0.0",
+        "pyasn1>=0.1.9",
+        "pyasn1-modules>=0.0.8",
+        "urllib3>=1.16",
+    ],
+)
+
+pkg_tar(
+    name = "start_esp_tar",
+    files = [":start_esp"],
+    mode = "0755",
+    package_dir = "/usr/sbin",
+    strip_prefix = ".",
 )
 
 pkg_deb(
@@ -271,9 +286,6 @@ pkg_deb(
         "lsb-base",
         "adduser",
         "python",
-        "python-oauth2client",
-        "python-mako",
-        "python-urllib3",
     ],
     description_file = "description",
     homepage = "g.co/endpoints",
@@ -285,7 +297,7 @@ pkg_deb(
     prerm = "@nginx_pkgoss//:debian_prerm",
     priority = "extra",
     section = "httpd",
-    version_file = "//include:version",
+    version_file = "//src/nginx:version",
 )
 
 sh_test(

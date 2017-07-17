@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,7 @@ func GetVersion() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	ver, err := ioutil.ReadFile(path + "/include/version")
+	ver, err := ioutil.ReadFile(path + "/src/nginx/version")
 	if err != nil {
 		return "", err
 	}

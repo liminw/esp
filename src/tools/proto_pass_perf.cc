@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,10 @@
 #include <memory>
 #include <string>
 
+#include "contrib/endpoints/src/api_manager/service_control/info.h"
+#include "contrib/endpoints/src/api_manager/service_control/proto.h"
 #include "google/protobuf/text_format.h"
-#include "src/api_manager/service_control/info.h"
-#include "src/api_manager/service_control/proto.h"
-#include "third_party/service-control-client-cxx/include/service_control_client.h"
+#include "include/service_control_client.h"
 
 using google::api_manager::service_control::OperationInfo;
 using google::api_manager::service_control::ReportRequestInfo;
@@ -43,12 +43,15 @@ using google::api_manager::service_control::Proto;
 
 using ::google::api::servicecontrol::v1::CheckRequest;
 using ::google::api::servicecontrol::v1::CheckResponse;
+using ::google::api::servicecontrol::v1::AllocateQuotaRequest;
+using ::google::api::servicecontrol::v1::AllocateQuotaResponse;
 using ::google::api::servicecontrol::v1::ReportRequest;
 using ::google::api::servicecontrol::v1::ReportResponse;
 using ::google::protobuf::Arena;
 using ::google::protobuf::util::Status;
 
 using ::google::service_control_client::CheckAggregationOptions;
+using ::google::service_control_client::QuotaAggregationOptions;
 using ::google::service_control_client::ReportAggregationOptions;
 using ::google::service_control_client::ServiceControlClient;
 using ::google::service_control_client::ServiceControlClientOptions;
@@ -63,7 +66,6 @@ const int MAX_PROTO_PASS_SIZE = 1000000;
 }  //  namespace
 
 void FillOperationInfo(OperationInfo* op) {
-  op->service_name = kServiceName;
   op->operation_id = "operation_id";
   op->operation_name = "operation_name";
   op->api_key = "api_key_x";
@@ -88,6 +90,7 @@ void FillReportRequestInfo(ReportRequestInfo* request) {
 
 int total_called_checks = 0;
 int total_called_reports = 0;
+int total_called_quotas = 0;
 std::string request_text;
 
 // Compare the performance for passing Service Control Report protobuf to its
@@ -96,7 +99,7 @@ std::string request_text;
 // 2. Re-use protobuf from a pool.
 // 3. Use proto arena allocation.
 int main() {
-  Proto scp({"local_test_log"}, kServiceConfigId);
+  Proto scp({"local_test_log"}, kServiceName, kServiceConfigId);
 
   std::unique_ptr<ServiceControlClient> client;
   // To set the cache, flush interval large enough for this test.
@@ -104,10 +107,15 @@ int main() {
       CheckAggregationOptions(1000000 /*entries*/,
                               1000000 /* refresh_interval_ms */,
                               1000000 /*flush_interval_ms*/),
+      QuotaAggregationOptions(1000000 /*entries*/,
+                              1000000 /* refresh_interval_ms */),
       ReportAggregationOptions(1000000 /*entries*/,
                                1000000 /* refresh_interval_ms */));
   options.check_transport = [](const CheckRequest&, CheckResponse*,
                                TransportDoneFunc) { ++total_called_checks; };
+  options.quota_transport = [](const AllocateQuotaRequest&,
+                               AllocateQuotaResponse*,
+                               TransportDoneFunc) { ++total_called_quotas; };
   options.report_transport = [](const ReportRequest&, ReportResponse*,
                                 TransportDoneFunc) { ++total_called_reports; };
   client = CreateServiceControlClient(kServiceName, kServiceConfigId, options);

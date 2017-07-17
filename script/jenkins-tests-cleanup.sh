@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -157,7 +157,7 @@ function list_instances() {
   local json_path="$(mktemp /tmp/XXXXX.json)"
   "${GCLOUD}" compute instances list \
     --project "${PROJECT}" \
-    --zone "${ZONE}" \
+    --zones "${ZONE}" \
     --format=json > "${json_path}"
   parse_gcloud_json "${json_path}" 'name' "${regex}"
   rm -f "${json_path}"
@@ -177,7 +177,7 @@ function list_namespaces() {
 function list_services() {
   local regex=${1}
   local json_path="$(mktemp /tmp/XXXXX.json)"
-  "${GCLOUD}" beta service-management list \
+  "${GCLOUD}" service-management list \
     --project "${PROJECT}" \
     --produced \
     --format=json > "${json_path}"

@@ -1,4 +1,4 @@
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -22,9 +22,33 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-################################################################################
+###############################################################################
 #
-load("@protobuf_git//:protobuf.bzl", "cc_proto_library")
+load("@protobuf_bzl//:protobuf.bzl", "cc_proto_library")
+
+exports_files(["version"])
+
+genrule(
+    name = "version_header_gen",
+    srcs = [
+        ":version",
+    ],
+    outs = [
+        "version.h",
+    ],
+    cmd = "$(location //tools:create_version) $(location :version) > $@",
+    tools = [
+        "//tools:create_version",
+    ],
+)
+
+cc_library(
+    name = "version_header",
+    srcs = [
+        "version.h",
+    ],
+    visibility = [":__subpackages__"],
+)
 
 cc_proto_library(
     name = "status_proto",
@@ -34,8 +58,8 @@ cc_proto_library(
     default_runtime = "//external:protobuf",
     protoc = "//external:protoc",
     deps = [
+        "//external:api_manager_status_proto",
         "//external:cc_wkt_protos",
-        "//src/api_manager:status_proto",
     ],
 )
 
@@ -82,14 +106,16 @@ cc_library(
     visibility = [":__subpackages__"],
     deps = [
         ":status_proto",
+        ":version_header",
+        "//external:api_manager",
         "//external:grpc",
         "//external:grpc++",
+        "//external:grpc_transcoding",
         "//external:protobuf",
-        "//include:api_manager",
-        "//src/api_manager/grpc",
-        "//src/api_manager/grpc:zero_copy_stream",
         "//external:servicecontrol",
-        "//third_party/nginx:core",
-        "//third_party/nginx:http",
+        "//src/grpc",
+        "//src/grpc:zero_copy_stream",
+        "@nginx//:core",
+        "@nginx//:http",
     ],
 )

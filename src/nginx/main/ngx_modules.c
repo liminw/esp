@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Endpoints Server Proxy Authors
+ * Copyright (C) Extensible Service Proxy Authors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
 #include <ngx_modules.h>
 
 #if (NGX_HTTP_ENDPOINTS_RUNTIME)
-#include "include/api_manager/version.h"
+#include "src/nginx/version.h"
 #endif
 
 /* clang-format off */

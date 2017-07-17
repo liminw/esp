@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,13 +27,14 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <uuid/uuid.h>
+#include <chrono>
 #include <fstream>
 #include <iostream>
 
+#include "contrib/endpoints/src/api_manager/service_control/proto.h"
+#include "contrib/endpoints/src/api_manager/utils/marshalling.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
-#include "src/api_manager/service_control/proto.h"
-#include "src/api_manager/utils/marshalling.h"
 
 const char* const DEFAULT_SERVICE_NAME =
     "endpoints-test.cloudendpointsapis.com";
@@ -45,6 +46,8 @@ enum OutputType { BINARY, TEXT, JSON };
 enum ProtoMessageType {
   CHECK_REQUEST,
   CHECK_RESPONSE,
+  QUOTA_REQUEST,
+  QUOTA_RESPONSE,
   REPORT_REQUEST,
   REPORT_RESPONSE
 };
@@ -68,12 +71,16 @@ const int kTextOutput = 4;
 const int kBinaryOutput = 5;
 const int kCheckRequstProto = 6;
 const int kCheckResponseProto = 7;
-const int kReportRequstProto = 8;
-const int kReportResponseProto = 9;
-const int kReportRequestSize = 10;
+const int kAllocateQuotaRequstProto = 8;
+const int kAllocateQuotaResponseProto = 9;
+const int kReportRequstProto = 10;
+const int kReportResponseProto = 11;
+const int kReportRequestSize = 12;
 
 ::google::api::servicecontrol::v1::CheckRequest check_request;
 ::google::api::servicecontrol::v1::CheckResponse check_response;
+::google::api::servicecontrol::v1::AllocateQuotaRequest quota_request;
+::google::api::servicecontrol::v1::AllocateQuotaResponse quota_response;
 ::google::api::servicecontrol::v1::ReportRequest report_request;
 ::google::api::servicecontrol::v1::ReportResponse report_response;
 
@@ -93,6 +100,8 @@ void ProcessCmdLine(int argc, char** argv) {
         {"binary", no_argument, nullptr, kBinaryOutput},
         {"check_request", no_argument, nullptr, kCheckRequstProto},
         {"check_response", no_argument, nullptr, kCheckResponseProto},
+        {"quota_request", no_argument, nullptr, kAllocateQuotaRequstProto},
+        {"quota_response", no_argument, nullptr, kAllocateQuotaResponseProto},
         {"report_request", no_argument, nullptr, kReportRequstProto},
         {"report_response", no_argument, nullptr, kReportResponseProto},
         {"report_request_size", required_argument, nullptr, kReportRequestSize},
@@ -132,6 +141,12 @@ void ProcessCmdLine(int argc, char** argv) {
       case kCheckResponseProto:
         proto_type = CHECK_RESPONSE;
         break;
+      case kAllocateQuotaRequstProto:
+        proto_type = QUOTA_REQUEST;
+        break;
+      case kAllocateQuotaResponseProto:
+        proto_type = QUOTA_RESPONSE;
+        break;
       case kReportRequstProto:
         proto_type = REPORT_REQUEST;
         break;
@@ -162,6 +177,8 @@ void ProcessCmdLine(int argc, char** argv) {
             "Protobuf message type:\n"
             "  --check_request:  CheckRequest protobuf message.\n"
             "  --check_response:  CheckResponse protobuf message.\n"
+            "  --quota_request:  AllocateQuotaRequest protobuf message.\n"
+            "  --quota_response:  AllocateQuotaResponse protobuf message.\n"
             "  --report_request:  ReportRequest protobuf message.\n"
             "  --report_response:  ReportResponse protobuf message.\n"
             "Input:\n"
@@ -252,34 +269,32 @@ std::string UuidGen() {
 
 ::google::protobuf::Message* generate_proto() {
   const std::set<std::string> logs = {"local_test_log"};
-  struct timeval tv;
-  struct timezone tz;
-  gettimeofday(&tv, &tz);
+
   std::string uuid = UuidGen();
   ::google::protobuf::Message* request = nullptr;
   if (proto_type == CHECK_REQUEST) {
     ::google::api_manager::service_control::CheckRequestInfo info;
-    info.service_name = service_name;
     info.operation_id = uuid.c_str();
     info.operation_name = operation_name;
     info.producer_project_id = producer_project_id;
     info.client_ip = "1.2.3.4";
     info.referer = "referer";
-    info.request_start_time = tv;
+    info.request_start_time = std::chrono::system_clock::now();
 
-    ::google::api_manager::service_control::Proto scp(logs, "2016-09-19r0");
+    ::google::api_manager::service_control::Proto scp(logs, service_name,
+                                                      "2016-09-19r0");
     scp.FillCheckRequest(info, &check_request);
     request = &check_request;
   }
   if (proto_type == REPORT_REQUEST) {
     ::google::api_manager::service_control::ReportRequestInfo info;
-    info.service_name = service_name;
     info.operation_id = uuid.c_str();
     info.operation_name = operation_name;
     info.producer_project_id = producer_project_id;
 
     info.referer = "referer";
-    info.request_start_time = tv;
+    info.request_start_time = std::chrono::system_clock::now();
+    ;
     info.response_code = 200;
     info.location = "us-central";
     info.api_name = "api-version";
@@ -288,7 +303,8 @@ std::string UuidGen() {
     info.response_size = 1024 * 1024;
     info.log_message = "test-method is called";
 
-    ::google::api_manager::service_control::Proto scp(logs, "2016-09-19r0");
+    ::google::api_manager::service_control::Proto scp(logs, service_name,
+                                                      "2016-09-19r0");
     scp.FillReportRequest(info, &report_request);
     request = &report_request;
 
@@ -315,6 +331,12 @@ int main(int argc, char** argv) {
       break;
     case CHECK_RESPONSE:
       request = &check_response;
+      break;
+    case QUOTA_REQUEST:
+      request = &quota_request;
+      break;
+    case QUOTA_RESPONSE:
+      request = &quota_response;
       break;
     case REPORT_REQUEST:
       request = &report_request;

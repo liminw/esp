@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ done
 [[ -f "${DEB}" ]] || error_exit "Cannot find Debian package ${DEB}"
 
 echo "Checking if docker image ${IMAGE} exists.."
-gcloud docker pull "${IMAGE}" \
+gcloud docker -- pull "${IMAGE}" \
   && { echo "Image ${IMAGE} already exists; skipping"; exit 0; }
 
 echo "Building Endpoints Runtime docker image."
@@ -61,7 +61,7 @@ if [[ "${PLATFORM}" == "flex" ]]; then
   # Update the Dockerfile to use local deb image
   DIMG="endpoints-runtime.deb"
   sed -i -e "s|endpoints-runtime||" \
-      -e "s|EXPOSE 8080|\nADD ${DIMG} ${DIMG}\nRUN apt-get update --fix-missing -qq \&\& \\\ \n    apt-get install -qqy python python python-oauth2client python-mako python-urllib3 \&\& \\\ \n    dpkg -i /${DIMG}\n&|" \
+      -e "s|EXPOSE 8080|\nADD ${DIMG} ${DIMG}\nRUN apt-get update --fix-missing -qq \&\& \\\ \n    apt-get install -qqy python \&\& \\\ \n    dpkg -i /${DIMG}\n&|" \
       "$FLEX_DIR/nginx_proxy/Dockerfile"
   DOCKERFILE_PATH="$FLEX_DIR/nginx_proxy"
   cat "$FLEX_DIR/nginx_proxy/Dockerfile"
@@ -86,7 +86,7 @@ if  [[ -n "${CONFIG}" ]]; then
 
   echo "Pushing Custom Docker image: ${IMAGE}"
   retry -n 10 -s 10 \
-      gcloud docker push "${IMAGE}" \
+      gcloud docker -- push "${IMAGE}" \
     || error_exit "Failed to upload custom Docker image to gcr."
 else
 
@@ -94,6 +94,6 @@ else
 
   # Try 10 times, shortest wait is 10 seconds, exponential back-off.
   retry -n 10 -s 10 \
-      gcloud docker push "${IMAGE}" \
+      gcloud docker -- push "${IMAGE}" \
     || error_exit "Failed to upload Docker image to gcr."
 fi

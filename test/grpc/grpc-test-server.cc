@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -360,6 +360,8 @@ void TestServer::Run(const char *addr) {
   ServerBuilder builder;
   builder.AddListeningPort(addr, InsecureServerCredentials());
   builder.RegisterService(this);
+  builder.SetMaxReceiveMessageSize(INT_MAX);
+  builder.SetMaxSendMessageSize(INT_MAX);
   cq_ = builder.AddCompletionQueue();
   std::unique_ptr<Server> server(builder.BuildAndStart());
 

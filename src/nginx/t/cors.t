@@ -1,4 +1,4 @@
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,10 @@ my $t = Test::Nginx->new()->has(qw/http proxy/)->plan(15);
 # Save service name in the service configuration protocol buffer file.
 my $config = ApiManager::get_bookstore_service_config .
              ApiManager::read_test_file('testdata/logs_metrics.pb.txt') . <<"EOF";
+endpoints {
+  name: "endpoints-test.cloudendpointsapis.com"
+  allow_cors: true
+}
 producer_project_id: "esp-project-id"
 control {
   environment: "http://127.0.0.1:${ServiceControlPort}"
@@ -73,7 +77,7 @@ http {
     location / {
       endpoints {
         api service.pb.txt;
-	server_config server_config.pb.txt;
+        server_config server_config.pb.txt;
         on;
       }
       proxy_pass http://127.0.0.1:${BackendPort};
@@ -170,6 +174,8 @@ my $expected_report_body1 = ServiceControl::gen_report_body({
   'response_code' => '204',
   'request_size' => 230,
   'response_size' => 229,
+  'request_bytes' => 230,
+  'response_bytes' => 229,
   });
 ok(ServiceControl::compare_json($report_body1, $expected_report_body1), 'Report body 1 is received.');
 
@@ -192,6 +198,8 @@ my $expected_report_body2 = ServiceControl::gen_report_body({
   'response_code' => '204',
   'request_size' => 209,
   'response_size' => 229,
+  'request_bytes' => 209,
+  'response_bytes' => 229,
   });
 ok(ServiceControl::compare_json($report_body2, $expected_report_body2), 'Report body 2 is received.');
 

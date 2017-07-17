@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,15 +29,15 @@
 #include <unistd.h>
 #include <fstream>
 
-#include "include/api_manager/version.h"
-#include "src/api_manager/utils/marshalling.h"
+#include "contrib/endpoints/src/api_manager/utils/marshalling.h"
 #include "src/nginx/environment.h"
 #include "src/nginx/module.h"
 #include "src/nginx/proto/status.pb.h"
+#include "src/nginx/version.h"
 
 extern "C" {
-#include "third_party/nginx/src/core/ngx_string.h"
-#include "third_party/nginx/src/http/ngx_http_request.h"
+#include "src/core/ngx_string.h"
+#include "src/http/ngx_http_request.h"
 }
 
 namespace google {
@@ -105,6 +105,7 @@ void fill_service_control_statistics(const Statistics &stat,
   pb->set_send_reports_by_flush(stat.send_reports_by_flush);
   pb->set_send_reports_in_flight(stat.send_reports_in_flight);
   pb->set_send_report_operations(stat.send_report_operations);
+  pb->set_max_report_size(stat.max_report_size);
 }
 
 void fill_process_stats(const ngx_esp_process_stats_t &stat,

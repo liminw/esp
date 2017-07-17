@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,8 +49,7 @@ RUN_TESTS = [
     'asan',
     'check-files',
     'docker-tests',
-    'flex-off-endpoints-off',
-    'flex-off-endpoints-on',
+    'flex',
     'gce-debian-8',
     'gke-custom-http-bookstore',
     'gke-loose-http-bookstore',
@@ -61,13 +60,12 @@ RUN_TESTS = [
     'gke-tight-https-bookstore',
     'jenkins-perf-test-vm-esp',
     'jenkins-post-submit-perf-test',
-    'long-run-test_flex-off-endpoints-on',
+    'long-run-test_flex',
     'long-run-test_gce-debian-8',
     'long-run-test_gke-tight-http2-echo',
     'long-run-test_gke-tight-http2-interop',
     'long-run-test_gke-tight-https-bookstore',
     'release',
-    'service-control',
     'tsan',
 ]
 

@@ -1,6 +1,6 @@
 #!groovy
 /*
-Copyright (C) Endpoints Server Proxy Authors
+Copyright (C) Extensible Service Proxy Authors
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@ DOCKER_SLAVES = [
 // parameter.
 // Please Update script/validate_release.py when adding or removing long-run-test.
 RELEASE_QUALIFICATION_BRANCHES = [
-    'flex-off-endpoints-on',
+    'flex',
     'gce-debian-8',
     'gke-tight-https',
     'gke-tight-http2-echo',
@@ -122,15 +122,14 @@ node('master') {
       stage('Unit / Integration Tests') {
         ws {
           def success = true
-          checkoutSourceCode()
-          updateGerrit('run')
+          updatePresubmit('run')
           try {
             presubmit(buildNodeLabel)
           } catch (Exception e) {
             success = false
             throw e
           } finally {
-            updateGerrit('verify', success)
+            updatePresubmit('verify', success)
           }
         }
       }
@@ -159,7 +158,7 @@ node('master') {
       // If all stages passed, queue up a release qualification.
       build(
           job: releaseQualJob,
-          parameters: [[$class: 'StringParameterValue', name: 'GIT_COMMIT', value: GIT_SHA],
+          parameters: [[$class: 'StringParameterValue', name: 'BRANCH_SPEC', value: GIT_SHA],
                        [$class: 'StringParameterValue', name: 'DURATION_HOUR', value: '10'],
                        [$class: 'StringParameterValue', name: 'STAGE', value: 'E2E'],
                        [$class: 'BooleanParameterValue', name: 'RELEASE_QUAL', value: true]],
@@ -169,6 +168,7 @@ node('master') {
     currentBuild.result = 'FAILURE'
     throw e
   } finally {
+
     step([
         $class: 'Mailer',
         notifyEveryUnstableBuild: false,
@@ -235,8 +235,7 @@ def presubmit(nodeLabel) {
       },
       'build-and-test': {
         node(nodeLabel) {
-          presubmitTests('service-control')
-          presubmitTests('build-and-test', false)
+          presubmitTests('build-and-test')
         }
       },
       'release': {
@@ -309,14 +308,9 @@ def e2eTest(nodeLabel) {
           e2eGKE('loose', 'https')
         }
       }],
-      ['flex-off-endpoints-on', {
+      ['flex', {
         node(nodeLabel) {
-          e2eFlex(true, false)
-        }
-      }],
-      ['flex-off-endpoints-off', {
-        node(nodeLabel) {
-          e2eFlex(false, false)
+          e2eFlex()
         }
       }],
       ['gke-tight-http2-echo', {
@@ -360,14 +354,14 @@ def espGenericDockerImage(suffix = '') {
   return "gcr.io/${PROJECT_ID}/endpoints-runtime${suffix}:debian-git-${GIT_SHA}"
 }
 
-def espDockerImage(suffix = '') {
+def espDockerImage() {
   if (isRelease()) {
     if (getParam('USE_LATEST_RELEASE', false)) {
-      return "b.gcr.io/endpoints/endpoints-runtime${suffix}:latest"
+      return "gcr.io/endpoints-release/endpoints-runtime:1"
     }
-    return "b.gcr.io/endpoints/endpoints-runtime${suffix}:${ESP_RUNTIME_VERSION}"
+    return "gcr.io/endpoints-release/endpoints-runtime:${ESP_RUNTIME_VERSION}"
   }
-  return espGenericDockerImage(suffix)
+  return espGenericDockerImage()
 }
 
 def espFlexDockerImage() {
@@ -407,7 +401,7 @@ def espDebianPackage() {
 
 def getEndpointsRuntimeVersion() {
   // Need to checkoutSourceCode() first
-  return readFile('include/version').trim()
+  return readFile('src/nginx/version').trim()
 }
 
 /*
@@ -446,23 +440,21 @@ def buildPackages() {
   // Building tools
   def tools = [
       '//src/tools:auth_token_gen',
-      '//tools/src:espcli',
       '//test/grpc:grpc-test-client',
       '//test/grpc:interop-client',
-      '//test/grpc:interop-metrics-client',
-      '//test/grpc:interop-server',
-      '//test/grpc:interop-stress-client',
+      '@org_golang_google_grpc//stress/metrics_client',
+      '@org_golang_google_grpc//interop/server',
+      '@org_golang_google_grpc//stress/client',
       '//test/grpc:grpc-test_descriptor',
       '//test/grpc:grpc-interop_descriptor',
   ]
   def stashPaths = [
       'bazel-bin/src/tools/auth_token_gen',
-      'bazel-bin/tools/src/espcli',
       'bazel-bin/test/grpc/grpc-test-client',
       'bazel-bin/test/grpc/interop-client',
-      'bazel-bin/test/grpc/interop-metrics-client',
-      'bazel-bin/test/grpc/interop-server',
-      'bazel-bin/test/grpc/interop-stress-client',
+      'bazel-bin/external/org_golang_google_grpc/stress/metrics_client/metrics_client',
+      'bazel-bin/external/org_golang_google_grpc/interop/server/server',
+      'bazel-bin/external/org_golang_google_grpc/stress/client/client',
       'bazel-genfiles/test/grpc/grpc-test.descriptor',
       'bazel-genfiles/test/grpc/grpc-interop.descriptor',
   ]
@@ -506,40 +498,22 @@ def testCleanup(daysOld, project, flags) {
 }
 
 // flow can be run or verify
-def updateGerrit(flow, success = false) {
-  def gerritUrl = getParam('GERRIT_URL')
-  if (gerritUrl != '') {
-    if (CHANGE_ID == '') {
-      error('CHANGE_ID must be set.')
-    }
-    def successFlag = success ? '--success' : ''
-    retry(3) {
-      sh("script/update-gerrit.py " +
-          "--build_url=\"${env.BUILD_URL}\" " +
-          "--change_id=\"${CHANGE_ID}\" " +
-          "--gerrit_url=\"${gerritUrl}\" " +
-          "--commit=\"${GIT_SHA}\" " +
-          "--flow=\"${flow}\" " +
-          "${successFlag}")
-      sleep(5)
-    }
-  } else {
-    // Github
-    switch (flow) {
-      case 'run':
-        state = 'PENDING'
-        message = "Running presubmits at ${env.BUILD_URL} ..."
-        break
-      case 'verify':
-        state = success ? 'SUCCESS' : 'FAILURE'
-        message = "${success ? 'Successful' : 'Failed'} presubmits. " +
-            "Details at ${env.BUILD_URL}."
-        break
-      default:
-        error('flow can only be run or verify')
-    }
-    setGitHubPullRequestStatus(context: env.JOB_NAME, message: message, state: state)
+def updatePresubmit(flow, success = false) {
+  if (getParam('STAGE') != PRESUBMIT || !getParam('UPDATE_PR', true)) return
+  switch (flow) {
+    case 'run':
+      state = 'PENDING'
+      message = "Running presubmits at ${env.BUILD_URL} ..."
+      break
+    case 'verify':
+      state = success ? 'SUCCESS' : 'FAILURE'
+      message = "${success ? 'Successful' : 'Failed'} presubmits. " +
+          "Details at ${env.BUILD_URL}."
+      break
+    default:
+      error('flow can only be run or verify')
   }
+  setGitHubPullRequestStatus(context: env.JOB_NAME, message: message, state: state)
 }
 
 def buildNewDockerSlave(nodeLabel) {
@@ -557,7 +531,7 @@ def buildNewDockerSlave(nodeLabel) {
       "-T \"${TOOLS_BUCKET}\"")
   echo("Testing ${testDockerImage}")
   node(getTestSlaveLabel(nodeLabel)) {
-    setupNode()
+    checkoutSourceCode()
     sh('jenkins/slaves/slave-test')
   }
   echo("Retagging ${testDockerImage} to ${dockerImage}")
@@ -655,7 +629,7 @@ def flexPerformance() {
       "-b ${logBucket}")
 }
 
-def e2eFlex(endpoints, flex) {
+def e2eFlex() {
   setupNode()
   fastUnstash('tools')
   def espImgFlex = espFlexDockerImage()
@@ -663,13 +637,9 @@ def e2eFlex(endpoints, flex) {
   def skipCleanup = getParam('SKIP_CLEANUP', false) ? '-k' : ''
   def logBucket = "gs://${BUCKET}/${GIT_SHA}/logs"
   def durationHour = getParam('DURATION_HOUR', 0)
-  def endpointsFlag = endpoints ? '-e ' : ''
-  def flexFlag = flex ? '-f ' : ''
   def useLatestVersion = getParam('USE_LATEST_RELEASE', false) ? '-L ' : ''
 
   sh("script/linux-test-vm-bookstore " +
-      "${endpointsFlag}" +
-      "${flexFlag}" +
       "-v ${rcTestVersion} " +
       "-i ${espImgFlex} " +
       "-l ${durationHour} " +
@@ -712,15 +682,6 @@ def getWithDefault(value, defaultValue = '') {
 
 def getParam(name, defaultValue = '') {
   return getWithDefault(params.get(name), defaultValue)
-}
-
-def getGitCommit() {
-  // Using a parameterized build with GIT_COMMIT env variable
-  def gitCommit = getParam('GIT_COMMIT', 'HEAD')
-  if (gitCommit == 'INVALID') {
-    failBranch('You must specify a valid GIT_COMMIT.')
-  }
-  return gitCommit
 }
 
 def getDebianPackageRepo() {
@@ -837,11 +798,17 @@ Git Helper Methods
 // Stashing source code to make sure that all branches uses the same version.
 // See JENKINS-35245 bug for more info.
 def stashSourceCode() {
-  initialize(true)
+  initialize()
+  // Testing new sub-modules.
+  // This script creates new commit for each sub-module.
+  // GIT_SHA will use the last commit.
+  submodules_update = getParam('SUBMODULES_UPDATE')
+  if (submodules_update != '') {
+    sh("script/update-submodules -s ${submodules_update}")
+  }
   // Setting source code related global variable once so it can be reused.
   GIT_SHA = failIfNullOrEmpty(getRevision(), 'GIT_SHA must be set')
   ESP_RUNTIME_VERSION = failIfNullOrEmpty(getEndpointsRuntimeVersion(), 'ESP_RUNTIME_VERSION must be set')
-  CHANGE_ID = getWithDefault(getChangeId())
   echo('Stashing source code')
   fastStash('src-code', '.')
 }
@@ -889,13 +856,6 @@ def getRevision() {
   return sh(returnStdout: true, script: 'git rev-parse --verify HEAD').trim()
 }
 
-def getChangeId() {
-  // Code needs to be checked out for this.
-  return sh(
-      returnStdout: true,
-      script: "git log --format=%B -n 1 HEAD | awk '/^Change-Id: / {print \$2}'").trim()
-}
-
 def setArtifactsLink() {
   def url = "https://console.cloud.google.com/storage/browser/${BUCKET}/${GIT_SHA}"
   def html = """
@@ -907,17 +867,7 @@ Find <a href='${url}'>artifacts</a> here
   archive artifactsHtml
 }
 
-def initialize(setup = false, authDaemon = true) {
-  setGit()
-  if (authDaemon) {
-    retry(10) {
-      // Timeout after 1 minute
-      timeout(1) {
-        setGitAuthDaemon()
-      }
-      sleep(5)
-    }
-  }
+def initialize() {
   retry(10) {
     // Timeout after 5 minute
     timeout(5) {
@@ -925,32 +875,6 @@ def initialize(setup = false, authDaemon = true) {
     }
     sleep(5)
   }
-  def gitCommit = getGitCommit()
-  if (gitCommit != 'HEAD') {
-    sh("git fetch origin ${gitCommit} && git checkout -f ${gitCommit}")
-
-  }
   // Updating submodules and cleaning files.
-  if (setup) {
-    sh('script/setup && script/obliterate')
-  }
-}
-
-
-def setGitAuthDaemon() {
-  sh('''#!/bin/bash
-echo "Installing Git Auth Daemon."
-rm -rf ./gcompute-tools .git-credential-cache/cookie
-git clone https://gerrit.googlesource.com/gcompute-tools
-echo "Authenticating to googlesource.com."
-AUTH_DAEMON=0
-gcompute-tools/git-cookie-authdaemon --nofork & AUTH_DAEMON=$!
-echo "Waiting on authentication to googlesource: PID=${AUTH_DAEMON}."
-sleep 5
-[[ -s ${HOME}/.git-credential-cache/cookie ]] || \
-  { echo 'Failed to authenticate on google'; exit 1; }
-trap \'kill %gcompute-tools/git-cookie-authdaemon\' EXIT''')
-}
-
-def setGit() {
+  sh('script/setup && script/obliterate')
 }

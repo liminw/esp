@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,11 +29,11 @@
 #include <fcntl.h>
 #include <string>
 
+#include "contrib/endpoints/src/api_manager/proto/server_config.pb.h"
 #include "google/protobuf/text_format.h"
 #include "google/protobuf/util/json_util.h"
 #include "google/protobuf/util/type_resolver.h"
 #include "google/protobuf/util/type_resolver_util.h"
-#include "src/api_manager/proto/server_config.pb.h"
 #include "src/nginx/module.h"
 #include "src/nginx/status.h"
 #include "src/nginx/util.h"
@@ -568,6 +568,26 @@ ngx_int_t ngx_esp_build_server_config(ngx_conf_t *cf, ngx_esp_loc_conf_t *lc,
   if (lc->api_authentication != NGX_CONF_UNSET) {
     config.mutable_api_authentication_config()->set_force_disable(
         lc->api_authentication == 0);
+  }
+
+  // the config file from nginx config will override the ones from
+  // server_config.
+  if (lc->endpoints_config.len > 0) {
+    auto service_config_rollout = config.mutable_service_config_rollout();
+    auto traffic_percentages =
+        service_config_rollout->mutable_traffic_percentages();
+    traffic_percentages->clear();
+
+    ngx_str_t file_name = lc->endpoints_config;
+    if (ngx_conf_full_name(cf->cycle, &file_name, 1) != NGX_OK) {
+      ngx_conf_log_error(
+          NGX_LOG_EMERG, cf, 0,
+          "Failed to resolve an api service configuration file: %V",
+          &file_name);
+      return NGX_ERROR;
+    }
+
+    (*traffic_percentages)[ngx_str_to_std(file_name)] = 100.0;
   }
 
   // Reserialize

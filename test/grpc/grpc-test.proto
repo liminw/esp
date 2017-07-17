@@ -44,6 +44,10 @@ message EchoRequest {
   // The payload size is random between 0 and value of this field.
   int32 random_payload_max_size = 3;
 
+  // If non 0, the text payload is generated with space characters
+  // The payload size is specified by the value of this field.
+  int32 space_payload_size = 6;
+
   // The metadata that server should return
   map<string, bytes> return_initial_metadata = 4;
   map<string, bytes> return_trailing_metadata = 5;
@@ -74,6 +78,14 @@ message CallConfig {
 
   // Additional metadata to send to server
   map<string, bytes> metadata = 4;
+
+  enum CompressionAlgorithm {
+    NONE = 0;
+    DEFLATE = 1;
+    GZIP = 2;
+  }
+  // Compression algorithm the request
+  CompressionAlgorithm compression = 5;
 }
 
 // The outcome of a GRPC call.
@@ -102,6 +114,9 @@ message EchoTest {
 
   // The final RPC status to expect in the response.
   CallStatus expected_status = 3;
+
+  // The expected metadata keys that the grpc server should receive.
+  repeated string expected_metadata_keys = 4;
 }
 
 message EchoResult {
@@ -138,6 +153,9 @@ message EchoStreamTest {
 
   // The final RPC status to expect in the response.
   CallStatus expected_status = 5;
+
+  // The duration of the echo stream.
+  int32 duration_in_sec = 6;
 }
 
 message EchoStreamResult {
@@ -344,6 +362,9 @@ message TestResult {
     ProbeUpstreamMessageLimitResult probe_upstream_message_limit = 7;
     EchoReportResult echo_report = 8;
   }
+
+  // Additional metadata that can be added by ESP during the Check processing.
+  map<string, bytes> additional_metadata = 9;
 }
 
 // Test results.

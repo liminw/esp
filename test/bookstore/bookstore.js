@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -213,6 +213,18 @@ function bookstore(options) {
   app.get('/', function(req, res) {
     res.status(200).sendFile('index.html', {
       root: __dirname
+    });
+  });
+
+  app.get('/restricted', function(req, res) {
+    res.status(200).json({
+      msg: 'restricted'
+    });
+  });
+
+  app.get('/quota_read', function(req, res) {
+    res.status(200).json({
+      msg: 'ok'
     });
   });
 

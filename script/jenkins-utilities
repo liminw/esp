@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ DEBIAN_PKG=''
 DIRECT_REPO=''
 DURATION_IN_HOUR=0
 ENDPOINTS_RUNTIME_VERSION=''
-ESP_IMAGE='b.gcr.io/endpoints/endpoints-runtime:latest'
+ESP_IMAGE='gcr.io/endpoints-release/endpoints-runtime:1'
 BACKEND=''
 INSTANCE_NAME=''
 NAMESPACE=''
@@ -56,21 +56,6 @@ TEST_TYPE='http'
 UNIQUE_ID='test'
 VM_IMAGE=''
 ESP_SERVICE_VERSION=''
-
-# To generate new version
-# $ cp test/bookstore/swagger_template.json swagger.json
-# For Prod
-# $ sed -i s|\${ENDPOINT_SERVICE}|testing-dot-endpoints-jenkins.appspot.com|g \
-  # swagger.json
-# For Staging
-# $ sed -i s|\${ENDPOINT_SERVICE}|staging-testing-dot-endpoints-jenkins.appspot.com|g \
-  # swagger.json
-# $ gcloud beta service-management convert-config swagger.json swagger.json
-# $ sed -i s/endpoints-servicecontrol/staging-servicecontrol/g swagger.json
-# For both
-# $ gcloud beta service-management deploy swagger.json
-# Take a note of the version and update here.
-# Once the service is deployed it will take 24h to get to staging.
 
 # Echo and un command, exit on failure
 function run_nonfatal() {
@@ -103,9 +88,9 @@ function sed_i() {
 function delete_service() {
   local esp_service="${1}"
   if ! [[ "${esp_service}" =~ "${DEFAULT_ESP_SERVICE}" ]]; then
-    ${GCLOUD} beta service-management disable \
+    ${GCLOUD} service-management disable \
       "${esp_service}" --project="${PROJECT_ID}"
-    ${GCLOUD} beta service-management delete "${esp_service}" -q
+    ${GCLOUD} service-management delete "${esp_service}" -q
   fi
 }
 
@@ -133,7 +118,7 @@ function set_esp_service_version() {
   local esp_service="${1}"
   local json_path="$(mktemp /tmp/XXXXX.json)"
   local version=''
-  ${GCLOUD} beta service-management describe \
+  ${GCLOUD} service-management describe \
     ${esp_service} --format=json > "${json_path}" || return 1
   version="$(python - << __EOF__ "${json_path}"
 import json
@@ -158,19 +143,17 @@ function create_service() {
   local operation=''
   local version=''
 
-  retry -n 2 set_esp_service_version "${esp_service}"
-  if [[ ${?} -ne 0 ]]; then
-    echo 'Deploying service'
-    retry -n 3 run ${GCLOUD} beta service-management deploy "${swagger_json}"
+  echo 'Deploying service'
+  retry -n 3 run ${GCLOUD} service-management deploy "${swagger_json}"
 
-    retry -n 5 set_esp_service_version "${esp_service}" \
-      || error_exit 'Could not fetch the service version.'
+  retry -n 5 set_esp_service_version "${esp_service}" \
+    || error_exit 'Could not fetch the service version.'
 
-    echo 'Activating service'
-    retry -n 3 run ${GCLOUD} beta service-management enable \
-      "${esp_service}" --project="${PROJECT_ID}" \
-      || error_exit 'Could not activate the service.'
-  fi
+  echo 'Activating service'
+  retry -n 3 run ${GCLOUD} service-management enable \
+    "${esp_service}" --project="${PROJECT_ID}" \
+    || error_exit 'Could not activate the service.'
+
   echo "ESP service version: ${ESP_SERVICE_VERSION}"
 }
 
@@ -299,6 +282,11 @@ function save_vm_logs() {
   # address which does not work with restrictive firewall rules
   set_ssh_private_key
   [[ ${?} -eq 0 ]] || { echo 'Failed to download SSH private key'; return 1; }
+
+  # For GCE, remove huge access log before tar
+  ssh -i "${SSH_PRIVATE_KEY}" \
+    -o StrictHostKeyChecking=no \
+    "${vm}" sudo rm /var/log/nginx/access.log
 
   ssh -i "${SSH_PRIVATE_KEY}" \
     -o StrictHostKeyChecking=no \

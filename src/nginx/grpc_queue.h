@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Endpoints Server Proxy Authors
+ * Copyright (C) Extensible Service Proxy Authors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@ extern "C" {
 #include "ngx_event.h"
 }
 
-#include "include/api_manager/async_grpc_queue.h"
+#include "src/grpc/async_grpc_queue.h"
 
 namespace google {
 namespace api_manager {

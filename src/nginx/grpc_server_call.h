@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Endpoints Server Proxy Authors
+ * Copyright (C) Extensible Service Proxy Authors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,10 +27,10 @@
 #define NGINX_NGX_ESP_GRPC_SERVER_CALL_H_
 
 extern "C" {
-#include "third_party/nginx/src/http/ngx_http.h"
+#include "src/http/ngx_http.h"
 }
 
-#include "src/api_manager/grpc/server_call.h"
+#include "src/grpc/server_call.h"
 
 namespace google {
 namespace api_manager {
@@ -73,6 +73,9 @@ class NgxEspGrpcServerCall : public grpc::ServerCall {
   virtual void Write(const ::grpc::ByteBuffer& msg,
                      std::function<void(bool)> continuation);
   virtual void RecordBackendTime(int64_t backend_time);
+
+  virtual void UpdateRequestMessageStat(int64_t size);
+  virtual void UpdateResponseMessageStat(int64_t size);
 
  protected:
   // Converts the request body into gRPC messages and outputs the raw slices.

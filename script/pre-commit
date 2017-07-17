@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,4 +70,11 @@ if [[ "${#SOURCE_FILES}" -ne 0 ]]; then
   popd > /dev/null
 else
   echo "No source files."
+fi
+
+BUILDIFIER="$(which buildifier)"
+if [[ -x "${BUILDIFIER}" ]]; then
+  ${BUILDIFIER} -showlog -mode=check $(find . -iname BUILD -type f)
+else
+  echo "Buildifier does not exist"
 fi

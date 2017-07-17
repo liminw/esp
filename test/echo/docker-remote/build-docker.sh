@@ -1,4 +1,4 @@
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ sed "s/\${PROJECT}/${PROJECT}/" ../service.json.temp >  ./service.json
 
 ${GCLOUD} docker -- build --no-cache -t ${TAG} .
 docker tag -f ${TAG} gcr.io/${PROJECT}/${TAG}
-${GCLOUD} docker push gcr.io/${PROJECT}/${TAG}
+${GCLOUD} docker -- push gcr.io/${PROJECT}/${TAG}
 
 rm service.json
 

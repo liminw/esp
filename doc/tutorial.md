@@ -23,12 +23,12 @@ On Linux, install:
 ## Bazel ##
 
 ESP is built using [Bazel](http://bazel.io) build tool. Install
-[Bazel](http://bazel.io) version 0.3.2, following the [Bazel
+[Bazel](http://bazel.io) version 0.4.4, following the [Bazel
 documentation](http://bazel.io/docs/install.html).
 
 *Note:* Bazel is under active development and from time to time, ESP continuous
 integration systems are upgraded to a new version of Bazel. Currently, ESP
-requires Bazel 0.3.2.
+requires Bazel 0.4.4.
 
 The version of Bazel used by ESP continuous integration systems can be found in
 the [linux-install-software](/script/linux-install-software)
@@ -57,6 +57,27 @@ initialize Git submodules, and build ESP using Bazel:
 The ESP binary location is:
 
     ./bazel-bin/src/nginx/main/nginx-esp
+
+
+# Make code change in istio/proxy #
+
+The key part of api_manager codes is in a separate github repositoy: istio/proxy.
+Here are the steps to make change to api_manager code.
+
+* Clone istio/proxy in a separate local folder.
+* Make change there and make sure it pass "bazel test //contrib/endpoints/src/..."
+* Change to ESP local folder, change its WORKSPACE to use local_repository
+  for istio_proxy_git. It should look something like this:
+
+     local_repository(
+        name = "istio_proxy_git",
+        path = "absolute path to your istio/proxy folder",
+     )
+
+* Then test it by "bazel test //src/..."
+* After the test passed, submit istio/proxy change.
+* After istio/proxy change is submitted, revert WORKSPACE change in ESP.
+* Update its istio_proxy_git to the new commit, submit the change.
 
 # Running ESP #
 
@@ -102,7 +123,7 @@ Start the application using [npm](https://www.npmjs.com/):
 
 ## Call the backend ##
 
-Now we are ready to call the the backend via Endpoints Server Proxy, using curl:
+Now we are ready to call the the backend via Extensible Service Proxy, using curl:
 
     curl -v http://localhost:8090/shelves
     curl -v http://localhost:8090/shelves/1
@@ -154,7 +175,7 @@ With your bookstore.json configuration file updated, deploy the configuration
 to Google Cloud Endpoints:
 
     gcloud components update
-    gcloud beta service-management deploy \
+    gcloud service-management deploy \
         --project=MY_PROJECT_ID \
         "${ESP}/src/nginx/conf/bookstore.json"
 
@@ -244,8 +265,8 @@ Open `${ESP}/src/nginx/conf/bookstore.json` and replace the (initially empty)
  "providers": [
    {
      "id": "test-auth-provider",
-     "issuer": "loadtest@esp-test-client.iam.gserviceaccount.com",
-     "jwksUri": "https://www.googleapis.com/service_accounts/v1/jwk/loadtest@esp-test-client.iam.gserviceaccount.com"
+     "issuer": "test-client@esp-test-client.iam.gserviceaccount.com",
+     "jwksUri": "https://www.googleapis.com/service_accounts/v1/jwk/test-client@esp-test-client.iam.gserviceaccount.com"
    }
  ],
  "rules": [

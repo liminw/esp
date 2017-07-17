@@ -1,3 +1,81 @@
+# Release 1.5.0 14-07-2017
+
+- Update NGINX to 1.13.3.
+- Add support for skip_service_control usage rule.
+
+# Release 1.4.0 30-05-2017
+
+- Fixed a Firebase rule bug when api-key is in query parameter.
+- Use producer project for Quota if api-key is not provided.
+- Added /producer/by_consumer metrics.
+- Add backend_protocol in the Report call.
+
+# Release 1.3.0 25-04-2017
+
+- Support endpoint authorization via firebase rules
+- Update Dockerfile to expose port 8080 by default
+
+# Release 1.2.0 12-04-2017
+
+- Support rate-limit.
+- Set 443 for the default port of https backend in start_esp.
+- Support escaped / in the URL path.
+- Support X-HTTP-Method-Override.
+- not to send api_key in Report if service is not activated.
+- Set gRPC max send/receive message size to unlimited.
+- Support apikey based traffic restriction.
+- Rename log entry name request_size to request_size_in_bytes.
+
+# Release 1.1.0 01-03-2017
+
+- Start deprecation of OpenAPI x-security to security (#101)
+- Stop using api_key if service is not activated. (#98)
+- Fail request if api_key is not valid
+- Basic GRPC request compression support (#94)
+- Support HEAD request in transcoding (#74)
+- Rename release GCR images to gcr.io/endpoints-release (#60)
+- NGINX high connection usage optimizations (#57)
+- Make TLS client certificate optional in start_esp
+- Start using AuthProvider audiences
+- Notable bug fixes:
+  * Fix ProxyFlow leak (#93)
+  * Do not report latency for streaming requests
+  * Validate if contents of x-jwks_uri contains a public key
+- General improvements to testing and build infrastructure:
+  * Update GRPC to 1.1.1
+  * Update grpc test service.json (#61)
+  * Add t test for fail wrong api key. (#104)
+  * Fix grpc interop stress test script. (#103)
+  * Use grpc-go for interop tests (#88)
+  * Fix debian jessie package issue
+  * Upgrade bazel to 0.4.4 (#92)
+  * t-test changes to check that x-endpoint-api-userinfo is received by grpc (#96)
+    service.
+  * Add transcoding metadata test
+  * Change scripts for new version file location.
+  * Move nginx_repositories close to its load.
+  * Fix start_esp main entry problem.
+  * Change script/release_tag_git to use upstream. (#44)
+  * Change release_tag_git to use absolute path.
+  * Not to save huge access.log for GCE. (#41)
+  * Fix bugs in script/release-publish. (#42)
+  * Use newer protobuf.bzl (#39)
+  * Use bazel to pull NGINX (#38)
+  * Fix GRPC interop test BUILD file (#37)
+  * Fix GRPC test BUILD file (#35)
+
+# Release 1.0.1 06-12-2016
+
+- Use GOOGLE_APPLICATION_CREDENTIALS in start-up script
+- service_control_client not to send large Report (<1MB)
+- Add max_report_size to statistics
+- Package start-up script with Python PEX
+- ESP CLI use same version for ESP docker image
+- A workaround for Proto2.MessageOptions.* options
+- Not call Check if api_key not provided
+- Respect allow_cors configuration
+- Log a warning if service control replies with a different service config
+
 # Release 1.0.0 11-11-2016
 
 - Fix for rename version => config_id
@@ -167,7 +245,7 @@
 
 # Release 0.3.0 07-07-2016 (First Beta Release of ESP)
 
-Endpoints Server Proxy, a.k.a. ESP is a proxy which enables API management
+Extensible Service Proxy, a.k.a. ESP is a proxy which enables API management
 capabilities for API services. It supports HTTP/JSON and gRPC APIs.
 
 ## Features in this release

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Endpoints Server Proxy Authors
+ * Copyright (C) Extensible Service Proxy Authors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 #include "src/nginx/util.h"
 
 extern "C" {
-#include "third_party/nginx/src/http/v2/ngx_http_v2_module.h"
+#include "src/http/v2/ngx_http_v2_module.h"
 }
 
 namespace google {

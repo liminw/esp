@@ -1,4 +1,4 @@
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@ use warnings;
 package ApiManager;
 
 use FindBin;
+use IO::Socket;
 use JSON::PP;
 use Data::Dumper;
 use MIME::Base64;
@@ -223,9 +224,7 @@ sub get_echo_service_config {
 
 sub get_grpc_test_service_config {
   my ($GrpcBackendPort) = @_;
-  return <<EOF
-name: "endpoints-grpc-test.cloudendpointsapis.com"
-producer_project_id: "endpoints-grpc-test"
+  return read_test_file("testdata/grpc_echo_service.pb.txt") . <<EOF
 backend {
   rules {
     selector: "test.grpc.Test.Echo"
@@ -234,15 +233,6 @@ backend {
   rules {
     selector: "test.grpc.Test.EchoStream"
     address: "127.0.0.1:$GrpcBackendPort"
-  }
-}
-apis {
-  name: "test.grpc.Test"
-  methods {
-    name: "Echo"
-  }
-  methods {
-    name: "EchoStream"
   }
 }
 EOF
@@ -338,7 +328,7 @@ sub grpc_test_server {
 
 sub grpc_interop_server {
   my ($t, $port) = @_;
-  my $server = './test/grpc/interop-server';
+  my $server = './external/org_golang_google_grpc/interop/server/server';
   exec $server, "--port", $port;
 }
 
@@ -634,6 +624,24 @@ sub http_end($;%) {
 
   log_in($reply);
   return $reply;
+}
+
+# Waits for a UDS socket to be ready.
+sub wait_for_uds($) {
+  my ($sockpath) = @_;
+
+  # wait for socket to accept connections
+  for (1 .. 50) {
+    my $s = IO::Socket::UNIX->new(
+	    Type => SOCK_STREAM(),
+	    PeerAddr => $sockpath,
+    );
+
+    return 1 if defined $s;
+    select undef, undef, undef, 0.1;
+  }
+
+  return undef;
 }
 
 1;

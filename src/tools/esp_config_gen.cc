@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -28,10 +28,10 @@
 #include <fstream>
 #include <iostream>
 
+#include "contrib/endpoints/src/api_manager/utils/marshalling.h"
 #include "google/api/service.pb.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
-#include "src/api_manager/utils/marshalling.h"
 
 const int kSourceFile = 1;
 const int kDestinationFile = 2;

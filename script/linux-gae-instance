@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -85,6 +85,8 @@ COMMAND="$1"
 
 function deploy_application() {
   echo "Deploy GAE instace ${APP_YAML_FILE} to ${VERSION}"
+  echo "gcloud version:"
+  echo "$(gcloud -v)"
 
   APP_DIR="$(dirname ${APP_YAML_FILE})"
 
@@ -95,7 +97,9 @@ function deploy_application() {
     # deploying an endpoints app requires the current directory
     # to be the app directory
     cd "${APP_DIR}"
-    ${GCLOUD} --project "${PROJECT}" beta app deploy \
+    echo "gcloud deploy command:"
+    echo "${GCLOUD} --project ${PROJECT} app deploy ${APP_YAML_FILE} ${ARGS[@]} --no-promote -q"
+    ${GCLOUD} --project "${PROJECT}" app deploy \
       "${APP_YAML_FILE}" "${ARGS[@]}" --no-promote -q
   )
 }
@@ -177,7 +181,7 @@ function download_nginx_logs() {
 
   retry -n 2 -s 10 \
     ${GCLOUD} compute ssh --project=${PROJECT} --zone=${vm_zone} ${vm_name} \
-        "sudo tar czf \"${remote_archive}\" /var/log/ ; sudo chmod 777 \"${remote_archive}\"" \
+        --command="sudo tar czf ${remote_archive} /var/log/; sudo chmod 777 ${remote_archive}" \
     || error_exit "Cannot tar backend VM logs."
 
   retry -n 2 -s 10 \

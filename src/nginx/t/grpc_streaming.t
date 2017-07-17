@@ -1,4 +1,4 @@
-# Copyright (C) Endpoints Server Proxy Authors
+# Copyright (C) Extensible Service Proxy Authors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -138,7 +138,10 @@ my $expected_report_body = ServiceControl::gen_report_body({
   'http_method' => 'POST',
   'log_message' => 'Method: test.grpc.Test.EchoStream',
   'response_code' => '200',
-  'request_size' => ($^O eq 'darwin' ? 499 : 501),
+  'request_size' => ($^O eq 'darwin' ? 491 : 493),
+  'request_bytes' => ($^O eq 'darwin' ? 491 : 493),
+  'streaming_request_message_counts' => 10,
+  'streaming_response_message_counts' => 10,
   });
 ok(ServiceControl::compare_http2_report_json($report_body, $expected_report_body), 'Report body is received.');
 

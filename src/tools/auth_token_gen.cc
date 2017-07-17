@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
 #include <memory>
 #include <string>
 
-#include "src/api_manager/auth/lib/auth_token.h"
+#include "contrib/endpoints/src/api_manager/auth/lib/auth_token.h"
 
 namespace {
 

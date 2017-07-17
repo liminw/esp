@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -25,13 +25,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-// An Endpoints Server Proxy nginx module.
+// An Extensible Service Proxy nginx module.
 //
 #include "src/nginx/module.h"
 
 #include <core/ngx_string.h>
 #include <memory>
 
+#include "contrib/endpoints/include/api_manager/utils/version.h"
 #include "module.h"
 #include "src/nginx/config.h"
 #include "src/nginx/environment.h"
@@ -39,6 +40,7 @@
 #include "src/nginx/response.h"
 #include "src/nginx/status.h"
 #include "src/nginx/util.h"
+#include "src/nginx/version.h"
 
 using ::google::protobuf::util::error::Code;
 using ::google::api_manager::utils::Status;
@@ -63,11 +65,22 @@ ngx_esp_request_ctx_s::ngx_esp_request_ctx_s(ngx_http_request_t *r,
       auth_token(ngx_null_string),
       grpc_server_call(nullptr),
       grpc_pass_through(IsGrpcRequest(r)),
+      grpc_backend(false),
       backend_time(-1) {
   ngx_memzero(&wakeup_event, sizeof(wakeup_event));
   if (lc && lc->esp) {
     request_handler = lc->esp->CreateRequestHandler(
         std::unique_ptr<Request>(new NgxEspRequest(r)));
+
+    auto config_id = request_handler->GetServiceConfigId();
+    auto it = lc->transcoder_factory_map.find(config_id);
+    if (it != lc->transcoder_factory_map.end()) {
+      transcoder_factory = it->second;
+    } else {
+      transcoder_factory = std::make_shared<transcoding::TranscoderFactory>(
+          lc->esp->service(config_id));
+      lc->transcoder_factory_map[config_id] = transcoder_factory;
+    }
   }
 }
 
@@ -87,7 +100,7 @@ namespace {
 const int kWaitCloseTime = 3;
 
 // ********************************************************
-// * Endpoints Server Proxy - Configuration declarations. *
+// * Extensible Service Proxy - Configuration declarations. *
 // ********************************************************
 
 //
@@ -100,12 +113,6 @@ void *ngx_esp_create_main_conf(ngx_conf_t *cf);
 // Initializes the modules' main context configuration structure.
 char *ngx_esp_init_main_conf(ngx_conf_t *cf, void *conf);
 
-// Create server context configuration.
-void *ngx_esp_create_srv_conf(ngx_conf_t *cf);
-
-// Merges in parent server configuration.
-char *ngx_esp_merge_srv_conf(ngx_conf_t *cf, void *prev, void *conf);
-
 // Creates the module's location context configuration structure.
 void *ngx_esp_create_loc_conf(ngx_conf_t *cf);
 char *ngx_esp_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
@@ -114,7 +121,7 @@ char *ngx_esp_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
 ngx_int_t ngx_esp_postconfiguration(ngx_conf_t *cf);
 
 // **************************************************
-// * Endpoints Server Proxy - Runtime declarations. *
+// * Extensible Service Proxy - Runtime declarations. *
 // **************************************************
 
 //
@@ -170,14 +177,22 @@ ngx_command_t ngx_esp_commands[] = {
     },
     {
         ngx_string("endpoints_resolver"), NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
-        ngx_conf_set_str_slot, NGX_HTTP_MAIN_CONF_OFFSET,
-        offsetof(ngx_esp_main_conf_t, upstream_resolver), nullptr,
+        [](ngx_conf_t *cf, ngx_command_t *cmd, void *conf) -> char * {
+          return ngx_conf_set_str_slot(
+              cf, cmd, &reinterpret_cast<ngx_esp_main_conf_t *>(conf)
+                            ->upstream_resolver);
+        },
+        NGX_HTTP_MAIN_CONF_OFFSET, 0, nullptr,
     },
     {
         ngx_string("endpoints_certificates"),
-        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1, ngx_conf_set_str_slot,
-        NGX_HTTP_MAIN_CONF_OFFSET, offsetof(ngx_esp_main_conf_t, cert_path),
-        nullptr,
+        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+        [](ngx_conf_t *cf, ngx_command_t *cmd, void *conf) -> char * {
+          return ngx_conf_set_str_slot(
+              cf, cmd,
+              &reinterpret_cast<ngx_esp_main_conf_t *>(conf)->cert_path);
+        },
+        NGX_HTTP_MAIN_CONF_OFFSET, 0, nullptr,
     },
     ngx_null_command  // last entry
 };
@@ -370,6 +385,9 @@ ngx_int_t ngx_esp_postconfiguration(ngx_conf_t *cf) {
     mc->upstream_resolver = google_dns;
   }
 
+  // Set the version to api_manager library.
+  utils::Version::instance().set(API_MANAGER_VERSION_STRING);
+
   bool endpoints_enabled = false;
 
   ngx_esp_loc_conf_t **endpoints =
@@ -378,37 +396,16 @@ ngx_int_t ngx_esp_postconfiguration(ngx_conf_t *cf) {
     ngx_esp_loc_conf_t *lc = endpoints[i];
 
     if (lc->endpoints_api == 1) {
-      if (lc->endpoints_config.len <= 0) {
-        // TODO: Is it possible to give better error message, i.e. name
-        // of the location where this misconfiguration happened?
-        ngx_conf_log_error(
-            NGX_LOG_EMERG, cf, 0,
-            "API Management enabled but configuration is not specified.");
-        return NGX_ERROR;
-      }
-
-      ngx_str_t file_name = lc->endpoints_config;
-      ngx_str_t file_contents = ngx_null_string;
-      if (!(ngx_conf_full_name(cf->cycle, &file_name, 1) == NGX_OK &&
-            ngx_esp_read_file((const char *)file_name.data, cf->pool,
-                              &file_contents) == NGX_OK)) {
-        ngx_conf_log_error(
-            NGX_LOG_EMERG, cf, 0,
-            "Failed to open an api service configuration file: %V", &file_name);
-        handle_endpoints_config_error(cf, lc);
-        return NGX_ERROR;
-      }
-
       ngx_log_t *log = lc->http_core_loc_conf->error_log;
       if (log == nullptr) {
         log = cf->log;
       }
+
       ngx_resolver_t *resolver = lc->http_core_loc_conf->resolver;
       if (!resolver) {
         ngx_conf_log_error(
             NGX_LOG_EMERG, cf, 0,
-            "No resolver defined by the api service configuration file: %V",
-            &file_name);
+            "No resolver defined by the api service configuration file");
         handle_endpoints_config_error(cf, lc);
         return NGX_ERROR;
       }
@@ -421,10 +418,9 @@ ngx_int_t ngx_esp_postconfiguration(ngx_conf_t *cf) {
         return NGX_ERROR;
       }
 
-      lc->esp = mc->esp_factory.GetOrCreateApiManager(
-          std::unique_ptr<ApiManagerEnvInterface>(
-              new NgxEspEnv(log, NgxEspGrpcQueue::TryInstance())),
-          ngx_str_to_std(file_contents), server_config);
+      lc->esp = mc->esp_factory.CreateApiManager(
+          std::unique_ptr<ApiManagerEnvInterface>(new NgxEspEnv(log)),
+          server_config);
 
       if (!lc->esp) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
@@ -433,28 +429,21 @@ ngx_int_t ngx_esp_postconfiguration(ngx_conf_t *cf) {
         return NGX_ERROR;
       }
 
-      // Verify we have service name.
-      if (lc->esp->service_name().empty()) {
-        ngx_conf_log_error(
-            NGX_LOG_EMERG, cf, 0,
-            "API service name not specified in configuration file %V.",
-            &file_name);
+      // Verify service configs loading status.
+      if (!lc->esp->LoadServiceRollouts().ok()) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "Failed to load service configuration files");
         handle_endpoints_config_error(cf, lc);
         return NGX_ERROR;
       }
 
-      // Set metadata server to esp
-      if (lc->metadata_server == 1 && lc->metadata_server_url.data != nullptr) {
-        lc->esp->SetMetadataServer(ngx_str_to_std(lc->metadata_server_url));
-      }
-
-      if (lc->google_authentication_secret.data != nullptr) {
-        Status status = lc->esp->SetClientAuthSecret(
-            ngx_str_to_std(lc->google_authentication_secret));
-        if (!status.ok()) {
-          ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, status.message().c_str());
-          return NGX_ERROR;
-        }
+      // Verify we have service name.
+      if (lc->esp->service_name().empty()) {
+        ngx_conf_log_error(
+            NGX_LOG_EMERG, cf, 0,
+            "API service name not specified in configuration file");
+        handle_endpoints_config_error(cf, lc);
+        return NGX_ERROR;
       }
 
       endpoints_enabled = endpoints_enabled || lc->esp->Enabled();
@@ -492,7 +481,7 @@ ngx_int_t ngx_esp_postconfiguration(ngx_conf_t *cf) {
 }
 
 // ********************************************************
-// * Endpoints Server Proxy - Runtime.                    *
+// * Extensible Service Proxy - Runtime.                    *
 // ********************************************************
 
 void wakeup_event_handler(ngx_event_t *ev) {
@@ -951,23 +940,9 @@ bool ngx_esp_attempt_shutdown(ngx_cycle_t *cycle) {
 }
 
 // The shutdown timeout.
+// The module schedules a short timeout to detect NGINX shutdown.
 //
-// The module schedules a very long timeout to detect NGINX shutdown. During
-// shutdown, NGINX cancels timers and calls their handlers.
-//
-// The value of NGX_MAX_INT32_VALUE (2147483647 ms, or approximately 24 days)
-// is used for the timeout because it is long enough (24 days) but also
-// confirmed to work on Mac OSX.
-//
-// Too high a timeout (for example NGX_MAX_INT_T_VALUE) will cause kevent to
-// return an invalid argument error which effectively disables the NGINX event
-// loop by turning into a perpetually failing infinite loop.
-//
-// The largest value confirmed to work on Mac OSX is:
-//   NGX_MAX_INT_T_VALUE >> 27 == 68719476735
-// which is approximately 795 days.
-//
-const ngx_msec_t shutdown_timeout = NGX_MAX_INT32_VALUE;
+ngx_msec_t shutdown_timeout = 500;
 
 // Forward declaration.
 void ngx_http_esp_exit_timer_event_handler(ngx_event_t *ev);
@@ -982,7 +957,6 @@ void ngx_esp_schedule_exit_timer(ngx_cycle_t *cycle, ngx_event_t *ev) {
   ev->data = cycle;
   ev->handler = ngx_http_esp_exit_timer_event_handler;
   ev->log = cycle->log;
-  ev->cancelable = 1;
 
   ngx_add_timer(ev, shutdown_timeout);
 }
@@ -993,13 +967,12 @@ void ngx_http_esp_exit_timer_event_handler(ngx_event_t *ev) {
 
   ngx_cycle_t *cycle = reinterpret_cast<ngx_cycle_t *>(ev->data);
 
-  if (ev->timedout) {
-    // Timer timed out. This should be exceedingly rare (the shutdown timeout is
-    // very long). If it does happen, reschedule the same timeout again.
+  if (!ngx_exiting && !ngx_terminate && !ngx_quit) {
     ngx_esp_schedule_exit_timer(cycle, ev);
   } else if (!ngx_esp_attempt_shutdown(cycle)) {
-    // Timer was cancelled but the shutdown attempt hasn't succeeded yet.
-    // Reschedule timer again to give shutdown more time to complete.
+    // The shutdown attempt hasn't succeeded yet. Reschedule timer again
+    // with shorter timeout to give shutdown more time to complete.
+    shutdown_timeout = 10;
     ngx_esp_schedule_exit_timer(cycle, ev);
   }
 }

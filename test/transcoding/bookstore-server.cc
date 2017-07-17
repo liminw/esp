@@ -1,4 +1,4 @@
-// Copyright (C) Endpoints Server Proxy Authors
+// Copyright (C) Extensible Service Proxy Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -47,6 +48,8 @@ void PrintRequest(const MessageType& message) {
   static ::google::protobuf::util::TypeResolver* type_resolver =
       ::google::protobuf::util::NewTypeResolverForDescriptorPool(
           "type.googleapis.com", message.GetDescriptor()->file()->pool());
+  static std::mutex mutex;
+  std::lock_guard<std::mutex> lock(mutex);
 
   std::string binary;
   if (!message.SerializeToString(&binary)) {
